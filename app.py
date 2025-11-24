@@ -14,6 +14,15 @@ import urllib.parse
 # Suppress specific warnings
 warnings.filterwarnings('ignore', message='.*meta device.*')
 
+# Base directory for portable app
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_DIR = os.path.join(SCRIPT_DIR, "temp")
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "output")
+
+# Create directories if they don't exist
+os.makedirs(TEMP_DIR, exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 # Multi-language support
 TRANSLATIONS = {
     "en": {
@@ -315,7 +324,7 @@ def load_image_from_url(url: str) -> Optional[str]:
         image = Image.open(BytesIO(response.content))
         
         # Save to temporary file
-        temp_path = "temp_url_image.jpg"
+        temp_path = os.path.join(TEMP_DIR, "temp_url_image.jpg")
         image.save(temp_path)
         
         return temp_path
@@ -350,7 +359,7 @@ def process_single_image(
             temp_path = image_path
         elif hasattr(image, 'shape'):
             # Сохраняем временное изображение если это numpy array
-            temp_path = "temp_image.jpg"
+            temp_path = os.path.join(TEMP_DIR, "temp_image.jpg")
             Image.fromarray(image).save(temp_path)
             image_path = temp_path
         else:
