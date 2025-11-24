@@ -6,11 +6,16 @@ from PIL import Image
 import random
 import os
 import warnings
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Generator
 import requests
 from io import BytesIO
 import urllib.parse
 import gc
+import json
+import csv
+import shutil
+from datetime import datetime
+import time
 
 # Suppress specific warnings
 warnings.filterwarnings('ignore', message='.*meta device.*')
@@ -19,10 +24,196 @@ warnings.filterwarnings('ignore', message='.*meta device.*')
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_DIR = os.path.join(SCRIPT_DIR, "temp")
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "output")
+DATASETS_DIR = os.path.join(SCRIPT_DIR, "datasets")
 
 # Create directories if they don't exist
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(DATASETS_DIR, exist_ok=True)
+
+# Custom CSS for beautiful UI
+CUSTOM_CSS = """
+/* Main container styling */
+.gradio-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+}
+
+/* Card style blocks */
+.card-style {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(203, 213, 225, 0.5) !important;
+    box-shadow: 0 8px 32px rgba(100, 116, 139, 0.1) !important;
+    border-radius: 16px !important;
+    padding: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Main header with gradient */
+.main-header {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+}
+
+.main-header h1 {
+    color: white !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.main-header p {
+    color: rgba(255,255,255,0.9) !important;
+    font-size: 1.1rem !important;
+    margin: 0.5rem 0 0 0 !important;
+}
+
+.main-header a {
+    color: white !important;
+    text-decoration: underline;
+}
+
+/* Generate button styling */
+.generate-btn {
+    min-height: 50px !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+}
+
+/* Status box */
+.status-box {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    border: 1px solid #7dd3fc !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+
+/* Progress info */
+.progress-info {
+    background: #f0fdf4 !important;
+    border: 1px solid #86efac !important;
+    border-radius: 8px !important;
+    padding: 0.75rem !important;
+}
+
+/* Dark mode support */
+.dark .gradio-container {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.dark .card-style {
+    background: rgba(30, 41, 59, 0.9) !important;
+    border: 1px solid rgba(51, 65, 85, 0.5) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark .status-box {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%) !important;
+    border: 1px solid #3b82f6 !important;
+}
+
+.dark .progress-info {
+    background: #14532d !important;
+    border: 1px solid #22c55e !important;
+}
+
+/* Accordion styling */
+.settings-accordion {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+/* Result variants */
+.variant-box {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.variant-box:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+/* Export buttons */
+.export-btn {
+    margin: 0.25rem !important;
+}
+"""
+
+# Description types with prompts
+DESCRIPTION_TYPES = {
+    "en": {
+        "Descriptive (Formal)": "Write a detailed and formal description of this image.",
+        "Descriptive (Informal)": "Write a casual, friendly description of this image.",
+        "Product Description": "Write a compelling product description for e-commerce based on this image.",
+        "SEO Description": "Write an SEO-optimized description for this image, maximum 160 characters.",
+        "Stable Diffusion Prompt": "Write a detailed Stable Diffusion prompt to recreate this image.",
+        "MidJourney Prompt": "Write a MidJourney prompt to recreate this image.",
+        "Booru Tags": "Write a list of Booru-style tags for this image, separated by commas.",
+        "Art Critic Analysis": "Analyze this image like an art critic, discussing composition, style, color, lighting, and artistic elements.",
+        "Social Media Caption": "Write an engaging social media caption for this image.",
+        "Custom": ""
+    },
+    "ru": {
+        "Описательный (формальный)": "Напиши детальное и формальное описание этого изображения на русском языке.",
+        "Описательный (неформальный)": "Напиши непринуждённое, дружелюбное описание этого изображения на русском языке.",
+        "Описание товара": "Напиши привлекательное описание товара для интернет-магазина на основе этого изображения на русском языке.",
+        "SEO описание": "Напиши SEO-оптимизированное описание для этого изображения на русском языке, максимум 160 символов.",
+        "Промпт Stable Diffusion": "Напиши детальный промпт для Stable Diffusion, чтобы воссоздать это изображение.",
+        "Промпт MidJourney": "Напиши промпт для MidJourney, чтобы воссоздать это изображение.",
+        "Теги Booru": "Напиши список тегов в стиле Booru для этого изображения, разделённых запятыми.",
+        "Анализ искусствоведа": "Проанализируй это изображение как искусствовед, обсуждая композицию, стиль, цвет, освещение и художественные элементы на русском языке.",
+        "Пост для соцсетей": "Напиши привлекательную подпись для социальных сетей к этому изображению на русском языке.",
+        "Свой промпт": ""
+    },
+    "zh": {
+        "描述性（正式）": "写一个详细正式的图像描述。",
+        "描述性（非正式）": "写一个轻松友好的图像描述。",
+        "产品描述": "根据这张图片为电商平台写一个吸引人的产品描述。",
+        "SEO描述": "为这张图片写一个SEO优化的描述，最多160个字符。",
+        "Stable Diffusion提示词": "写一个详细的Stable Diffusion提示词来重现这张图片。",
+        "MidJourney提示词": "写一个MidJourney提示词来重现这张图片。",
+        "Booru标签": "为这张图片写一个Booru风格的标签列表，用逗号分隔。",
+        "艺术评论分析": "像艺术评论家一样分析这张图片，讨论构图、风格、色彩、光线和艺术元素。",
+        "社交媒体文案": "为这张图片写一个吸引人的社交媒体文案。",
+        "自定义": ""
+    }
+}
+
+# Description lengths
+DESCRIPTION_LENGTHS = {
+    "en": {
+        "Any": "",
+        "Very Short (1-2 sentences)": "Keep it very short, 1-2 sentences maximum.",
+        "Short (3-4 sentences)": "Keep it short, 3-4 sentences.",
+        "Medium (1 paragraph)": "Write a medium-length description, about one paragraph.",
+        "Long (2-3 paragraphs)": "Write a detailed description, 2-3 paragraphs.",
+        "Very Long (comprehensive)": "Write a comprehensive and very detailed description."
+    },
+    "ru": {
+        "Любая": "",
+        "Очень короткая (1-2 предложения)": "Сделай очень коротко, максимум 1-2 предложения.",
+        "Короткая (3-4 предложения)": "Сделай коротко, 3-4 предложения.",
+        "Средняя (1 абзац)": "Напиши описание средней длины, около одного абзаца.",
+        "Длинная (2-3 абзаца)": "Напиши детальное описание, 2-3 абзаца.",
+        "Очень длинная (подробная)": "Напиши исчерпывающее и очень детальное описание."
+    },
+    "zh": {
+        "任意": "",
+        "非常短（1-2句）": "保持非常简短，最多1-2句。",
+        "短（3-4句）": "保持简短，3-4句。",
+        "中等（1段）": "写一个中等长度的描述，大约一段。",
+        "长（2-3段）": "写一个详细的描述，2-3段。",
+        "非常长（全面）": "写一个全面且非常详细的描述。"
+    }
+}
 
 # Multi-language support
 TRANSLATIONS = {
@@ -83,7 +274,33 @@ TRANSLATIONS = {
         "quantization_info": "Memory optimization (4-bit = ~75% less VRAM)",
         "quant_4bit": "4-bit (Recommended)",
         "quant_8bit": "8-bit (Better quality)",
-        "quant_none": "None (Full precision)"
+        "quant_none": "None (Full precision)",
+        "description_type": "Description Type",
+        "description_type_info": "Select the type/style of description",
+        "description_length": "Description Length",
+        "description_length_info": "Select desired length",
+        "num_variants": "Number of Variants",
+        "num_variants_info": "Generate multiple description variants",
+        "custom_prompt_override": "Custom Prompt (overrides type selection)",
+        "custom_prompt_placeholder": "Enter your custom prompt here...",
+        "status": "Status",
+        "processing_time": "Processing time",
+        "generating": "⏳ Generating...",
+        "stop_btn": "🛑 Stop",
+        "save_results": "💾 Save Results",
+        "output_folder": "Output Folder Name",
+        "output_folder_placeholder": "my_dataset",
+        "export_format": "Export Format",
+        "export_txt": "TXT (one file per image)",
+        "export_json": "JSON (all results)",
+        "export_csv": "CSV (table format)",
+        "variant": "Variant",
+        "copy_btn": "📋 Copy",
+        "download_btn": "⬇️ Download",
+        "generation_complete": "✅ Generation complete!",
+        "seconds": "seconds",
+        "processing_image": "Processing image",
+        "of": "of"
     },
     "ru": {
         "title": "Генератор описаний изображений Qwen VL",
@@ -142,7 +359,33 @@ TRANSLATIONS = {
         "quantization_info": "Оптимизация памяти (4-bit = ~75% меньше VRAM)",
         "quant_4bit": "4-bit (Рекомендуется)",
         "quant_8bit": "8-bit (Лучше качество)",
-        "quant_none": "Нет (Полная точность)"
+        "quant_none": "Нет (Полная точность)",
+        "description_type": "Тип описания",
+        "description_type_info": "Выберите тип/стиль описания",
+        "description_length": "Длина описания",
+        "description_length_info": "Выберите желаемую длину",
+        "num_variants": "Количество вариантов",
+        "num_variants_info": "Генерировать несколько вариантов описания",
+        "custom_prompt_override": "Свой промпт (переопределяет выбор типа)",
+        "custom_prompt_placeholder": "Введите свой промпт здесь...",
+        "status": "Статус",
+        "processing_time": "Время обработки",
+        "generating": "⏳ Генерация...",
+        "stop_btn": "🛑 Остановить",
+        "save_results": "💾 Сохранить результаты",
+        "output_folder": "Название папки",
+        "output_folder_placeholder": "мой_датасет",
+        "export_format": "Формат экспорта",
+        "export_txt": "TXT (один файл на изображение)",
+        "export_json": "JSON (все результаты)",
+        "export_csv": "CSV (табличный формат)",
+        "variant": "Вариант",
+        "copy_btn": "📋 Копировать",
+        "download_btn": "⬇️ Скачать",
+        "generation_complete": "✅ Генерация завершена!",
+        "seconds": "секунд",
+        "processing_image": "Обработка изображения",
+        "of": "из"
     },
     "zh": {
         "title": "Qwen VL 图像描述生成器",
@@ -201,7 +444,33 @@ TRANSLATIONS = {
         "quantization_info": "内存优化（4位 = 减少约75%显存）",
         "quant_4bit": "4位（推荐）",
         "quant_8bit": "8位（更高质量）",
-        "quant_none": "无（全精度）"
+        "quant_none": "无（全精度）",
+        "description_type": "描述类型",
+        "description_type_info": "选择描述类型/风格",
+        "description_length": "描述长度",
+        "description_length_info": "选择所需长度",
+        "num_variants": "变体数量",
+        "num_variants_info": "生成多个描述变体",
+        "custom_prompt_override": "自定义提示词（覆盖类型选择）",
+        "custom_prompt_placeholder": "在此输入您的自定义提示词...",
+        "status": "状态",
+        "processing_time": "处理时间",
+        "generating": "⏳ 生成中...",
+        "stop_btn": "🛑 停止",
+        "save_results": "💾 保存结果",
+        "output_folder": "输出文件夹名称",
+        "output_folder_placeholder": "我的数据集",
+        "export_format": "导出格式",
+        "export_txt": "TXT（每张图片一个文件）",
+        "export_json": "JSON（所有结果）",
+        "export_csv": "CSV（表格格式）",
+        "variant": "变体",
+        "copy_btn": "📋 复制",
+        "download_btn": "⬇️ 下载",
+        "generation_complete": "✅ 生成完成！",
+        "seconds": "秒",
+        "processing_image": "处理图像",
+        "of": "/"
     }
 }
 
@@ -211,6 +480,108 @@ current_language = "en"
 def get_text(key: str) -> str:
     """Get translated text for the current language"""
     return TRANSLATIONS[current_language].get(key, key)
+
+def get_description_types() -> list:
+    """Get description types for current language"""
+    return list(DESCRIPTION_TYPES.get(current_language, DESCRIPTION_TYPES["en"]).keys())
+
+def get_description_lengths() -> list:
+    """Get description lengths for current language"""
+    return list(DESCRIPTION_LENGTHS.get(current_language, DESCRIPTION_LENGTHS["en"]).keys())
+
+def build_prompt(description_type: str, description_length: str, custom_prompt: str, base_prompt: str = "") -> str:
+    """Build the final prompt based on type, length, and custom input"""
+    # If custom prompt is provided, use it
+    if custom_prompt and custom_prompt.strip():
+        return custom_prompt.strip()
+
+    # Get type prompt
+    types_dict = DESCRIPTION_TYPES.get(current_language, DESCRIPTION_TYPES["en"])
+    type_prompt = types_dict.get(description_type, "")
+
+    # If type is Custom, use base prompt
+    if not type_prompt:
+        type_prompt = base_prompt if base_prompt else "Describe this image."
+
+    # Get length modifier
+    lengths_dict = DESCRIPTION_LENGTHS.get(current_language, DESCRIPTION_LENGTHS["en"])
+    length_modifier = lengths_dict.get(description_length, "")
+
+    # Combine prompts
+    if length_modifier:
+        return f"{type_prompt} {length_modifier}"
+    return type_prompt
+
+def create_output_folder(folder_name: str = None) -> str:
+    """Create and return path to output folder"""
+    if folder_name and folder_name.strip():
+        # Sanitize folder name
+        safe_name = "".join(c for c in folder_name if c.isalnum() or c in "_ -").strip()
+        if not safe_name:
+            safe_name = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    else:
+        safe_name = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    folder_path = os.path.join(DATASETS_DIR, safe_name)
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+def save_results_txt(results: List[dict], output_folder: str) -> List[str]:
+    """Save results as individual TXT files"""
+    saved_files = []
+    for result in results:
+        filename = os.path.splitext(os.path.basename(result.get("image_path", "image")))[0]
+        txt_path = os.path.join(output_folder, f"{filename}.txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            if isinstance(result.get("descriptions"), list):
+                for i, desc in enumerate(result["descriptions"], 1):
+                    f.write(f"=== Variant {i} ===\n{desc}\n\n")
+            else:
+                f.write(result.get("description", ""))
+        saved_files.append(txt_path)
+
+        # Copy image if exists
+        if result.get("image_path") and os.path.exists(result["image_path"]):
+            img_dest = os.path.join(output_folder, os.path.basename(result["image_path"]))
+            if not os.path.exists(img_dest):
+                shutil.copy2(result["image_path"], img_dest)
+
+    return saved_files
+
+def save_results_json(results: List[dict], output_folder: str) -> str:
+    """Save all results as a single JSON file"""
+    json_path = os.path.join(output_folder, "results.json")
+    export_data = []
+    for result in results:
+        export_data.append({
+            "image": os.path.basename(result.get("image_path", "")),
+            "prompt": result.get("prompt", ""),
+            "descriptions": result.get("descriptions", [result.get("description", "")]),
+            "timestamp": datetime.now().isoformat()
+        })
+
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(export_data, f, ensure_ascii=False, indent=2)
+
+    return json_path
+
+def save_results_csv(results: List[dict], output_folder: str) -> str:
+    """Save all results as a CSV file"""
+    csv_path = os.path.join(output_folder, "results.csv")
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Image", "Prompt", "Description", "Variant"])
+
+        for result in results:
+            image_name = os.path.basename(result.get("image_path", ""))
+            prompt = result.get("prompt", "")
+            descriptions = result.get("descriptions", [result.get("description", "")])
+
+            for i, desc in enumerate(descriptions, 1):
+                writer.writerow([image_name, prompt, desc, i])
+
+    return csv_path
 
 class ImageDescriptionGenerator:
     def __init__(self):
@@ -396,28 +767,40 @@ def load_image_from_url(url: str) -> Optional[str]:
 def process_single_image(
     image,
     image_url: str,
-    prompt: str,
+    description_type: str,
+    description_length: str,
+    custom_prompt: str,
+    num_variants: int,
     model_name: str,
     quantization: str,
     max_new_tokens: int,
     temperature: float,
     top_p: float,
     top_k: int,
-    seed: int
-) -> str:
-    """Обработка одного изображения"""
+    seed: int,
+    progress=gr.Progress(track_tqdm=True)
+) -> Generator:
+    """Обработка одного изображения с генерацией нескольких вариантов"""
+    start_time = time.time()
+
     # Check if we have either uploaded image or URL
     if image is None and not image_url.strip():
-        return get_text("error_no_image")
+        yield get_text("error_no_image"), "", []
+        return
 
-    if not prompt.strip():
-        return get_text("error_no_prompt")
+    # Build prompt from type, length and custom
+    final_prompt = build_prompt(description_type, description_length, custom_prompt)
+    if not final_prompt.strip():
+        yield get_text("error_no_prompt"), "", []
+        return
 
     temp_path = None
+    num_variants = int(num_variants)
 
     try:
         # Priority: URL over uploaded image (if both provided, URL takes precedence)
-        if image_url.strip():
+        if image_url and image_url.strip():
+            yield f"⏳ {get_text('generating')} (loading from URL...)", final_prompt, []
             image_path = load_image_from_url(image_url.strip())
             temp_path = image_path
         elif hasattr(image, 'shape'):
@@ -428,22 +811,33 @@ def process_single_image(
         else:
             image_path = image
 
-        result = generator.generate_description(
-            image_path=image_path,
-            prompt=prompt,
-            model_name=model_name,
-            quantization=quantization,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            seed=seed
-        )
+        results = []
+        for i in range(num_variants):
+            variant_seed = seed if seed == -1 else seed + i
+            status_msg = f"⏳ {get_text('generating')} ({get_text('variant')} {i+1}/{num_variants})"
+            yield status_msg, final_prompt, results
 
-        return result
+            result = generator.generate_description(
+                image_path=image_path,
+                prompt=final_prompt,
+                model_name=model_name,
+                quantization=quantization,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                seed=variant_seed
+            )
+            results.append(result)
+
+        # Calculate processing time
+        elapsed_time = time.time() - start_time
+        final_status = f"{get_text('generation_complete')} ({get_text('processing_time')}: {elapsed_time:.1f} {get_text('seconds')})"
+
+        yield final_status, final_prompt, results
 
     except Exception as e:
-        return str(e)
+        yield f"❌ Error: {str(e)}", final_prompt, []
     finally:
         # Удаляем временный файл
         if temp_path and os.path.exists(temp_path):
@@ -452,52 +846,124 @@ def process_single_image(
             except:
                 pass
 
+        # Clean up GPU memory
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
 def process_batch_images(
     files: List,
-    prompts_text: str,
+    description_type: str,
+    description_length: str,
+    custom_prompt: str,
+    num_variants: int,
+    output_folder_name: str,
+    export_formats: List[str],
     model_name: str,
     quantization: str,
     max_new_tokens: int,
     temperature: float,
     top_p: float,
     top_k: int,
-    seed: int
-) -> str:
-    """Обработка пакета изображений"""
+    seed: int,
+    progress=gr.Progress(track_tqdm=True)
+) -> Generator:
+    """Обработка пакета изображений с прогресс-баром и экспортом"""
+    start_time = time.time()
+
     if not files:
-        return get_text("error_no_images")
+        yield get_text("error_no_images"), ""
+        return
 
-    if not prompts_text.strip():
-        return get_text("error_no_prompts")
+    # Build prompt from type, length and custom
+    final_prompt = build_prompt(description_type, description_length, custom_prompt)
+    if not final_prompt.strip():
+        yield get_text("error_no_prompts"), ""
+        return
 
-    # Разбиваем промты по строкам
-    prompts = [p.strip() for p in prompts_text.split('\n') if p.strip()]
+    num_variants = int(num_variants)
+    total_files = len(files)
+    all_results = []
+    output_lines = []
 
-    if len(prompts) == 1:
-        # Если один промт, используем его для всех изображений
-        prompts = prompts * len(files)
-    elif len(prompts) != len(files):
-        return get_text("error_prompt_mismatch").format(len(prompts), len(files))
+    # Create output folder
+    output_folder = create_output_folder(output_folder_name)
 
-    results = []
-    for idx, (file, prompt) in enumerate(zip(files, prompts), 1):
+    for idx, file in enumerate(progress.tqdm(files, desc="Processing images")):
         image_path = file.name if hasattr(file, 'name') else file
-        result = generator.generate_description(
-            image_path=image_path,
-            prompt=prompt,
-            model_name=model_name,
-            quantization=quantization,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            seed=seed if seed == -1 else seed + idx - 1  # Разный seed для каждого изображения
-        )
-        results.append(get_text("image_label").format(idx, os.path.basename(image_path)) + "\n")
-        results.append(get_text("prompt_label").format(prompt) + "\n")
-        results.append(get_text("result_label").format(result) + "\n\n")
+        filename = os.path.basename(image_path)
 
-    return "".join(results)
+        # Status update
+        status_msg = f"⏳ {get_text('processing_image')} {idx + 1} {get_text('of')} {total_files}: {filename}"
+        yield status_msg, "\n".join(output_lines)
+
+        descriptions = []
+        for v in range(num_variants):
+            variant_seed = seed if seed == -1 else seed + idx * num_variants + v
+
+            result = generator.generate_description(
+                image_path=image_path,
+                prompt=final_prompt,
+                model_name=model_name,
+                quantization=quantization,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                seed=variant_seed
+            )
+            descriptions.append(result)
+
+        # Store result
+        all_results.append({
+            "image_path": image_path,
+            "prompt": final_prompt,
+            "descriptions": descriptions,
+            "description": descriptions[0] if descriptions else ""
+        })
+
+        # Add to output
+        output_lines.append(f"{'='*50}")
+        output_lines.append(get_text("image_label").format(idx + 1, filename))
+        output_lines.append(get_text("prompt_label").format(final_prompt))
+
+        for v_idx, desc in enumerate(descriptions, 1):
+            if num_variants > 1:
+                output_lines.append(f"\n--- {get_text('variant')} {v_idx} ---")
+            output_lines.append(f"{desc}\n")
+
+        yield status_msg, "\n".join(output_lines)
+
+    # Save results in selected formats
+    saved_paths = []
+    if export_formats:
+        if "TXT" in export_formats:
+            txt_files = save_results_txt(all_results, output_folder)
+            saved_paths.extend(txt_files)
+
+        if "JSON" in export_formats:
+            json_path = save_results_json(all_results, output_folder)
+            saved_paths.append(json_path)
+
+        if "CSV" in export_formats:
+            csv_path = save_results_csv(all_results, output_folder)
+            saved_paths.append(csv_path)
+
+    # Calculate total time
+    elapsed_time = time.time() - start_time
+
+    # Final status
+    final_status = f"{get_text('generation_complete')}\n"
+    final_status += f"📊 {total_files} images processed in {elapsed_time:.1f} {get_text('seconds')}\n"
+    if saved_paths:
+        final_status += f"💾 Results saved to: {output_folder}"
+
+    yield final_status, "\n".join(output_lines)
+
+    # Clean up GPU memory
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
 def random_seed() -> int:
     """Генерация случайного seed"""
@@ -512,12 +978,22 @@ def update_examples():
     ]
 
 def create_interface():
-    """Create Gradio interface with current language"""
-    with gr.Blocks(title=get_text("title"), theme=gr.themes.Soft()) as demo:
-        # Header that will be updated
+    """Create Gradio interface with current language and beautiful styling"""
+    with gr.Blocks(
+        title=get_text("title"),
+        theme=gr.themes.Soft(primary_hue="indigo", secondary_hue="purple", neutral_hue="slate"),
+        css=CUSTOM_CSS
+    ) as demo:
+        # Beautiful gradient header
+        gr.HTML("""
+        <div class="main-header">
+            <h1>🖼️ Qwen VL Image Description Generator PRO</h1>
+            <p>Advanced AI-powered image description with multiple styles and export options</p>
+        </div>
+        """)
+
+        # Header that will be updated for language
         header_md = gr.Markdown(f"""
-        # {get_text("header")}
-        
         {get_text("subtitle")}
         """)
         
@@ -620,61 +1096,150 @@ def create_interface():
             single_tab = gr.TabItem(get_text("single_processing"))
             with single_tab:
                 with gr.Row():
-                    with gr.Column(scale=1):
+                    with gr.Column(scale=1, elem_classes="card-style"):
+                        gr.Markdown("### 📷 Input")
                         single_image = gr.Image(
                             type="numpy",
                             label=get_text("upload_image"),
-                            height=350
+                            height=300
                         )
                         single_image_url = gr.Textbox(
                             label=get_text("image_url"),
                             placeholder=get_text("image_url_placeholder"),
                             lines=1
                         )
-                        single_prompt = gr.Textbox(
-                            label=get_text("prompt"),
-                            placeholder=get_text("prompt_placeholder"),
-                            lines=3
+
+                        gr.Markdown("### 📝 Description Settings")
+                        single_desc_type = gr.Dropdown(
+                            choices=get_description_types(),
+                            value=get_description_types()[0],
+                            label=get_text("description_type"),
+                            info=get_text("description_type_info")
                         )
-                        single_submit_btn = gr.Button(get_text("generate_btn"), variant="primary")
-                    
-                    with gr.Column(scale=1):
-                        single_output = gr.Textbox(
-                            label=get_text("result"),
-                            lines=15,
-                            show_copy_button=True
+                        single_desc_length = gr.Dropdown(
+                            choices=get_description_lengths(),
+                            value=get_description_lengths()[0],
+                            label=get_text("description_length"),
+                            info=get_text("description_length_info")
                         )
-                
+                        single_num_variants = gr.Slider(
+                            minimum=1,
+                            maximum=5,
+                            value=1,
+                            step=1,
+                            label=get_text("num_variants"),
+                            info=get_text("num_variants_info")
+                        )
+
+                        with gr.Accordion(get_text("custom_prompt_override"), open=False):
+                            single_custom_prompt = gr.Textbox(
+                                placeholder=get_text("custom_prompt_placeholder"),
+                                lines=3,
+                                label=""
+                            )
+
+                        single_submit_btn = gr.Button(
+                            get_text("generate_btn"),
+                            variant="primary",
+                            elem_classes="generate-btn"
+                        )
+
+                    with gr.Column(scale=1, elem_classes="card-style"):
+                        gr.Markdown("### 📊 Results")
+                        single_status = gr.Textbox(
+                            label=get_text("status"),
+                            interactive=False,
+                            elem_classes="status-box"
+                        )
+                        single_prompt_used = gr.Textbox(
+                            label="Prompt Used",
+                            interactive=False,
+                            lines=2
+                        )
+
+                        # Multiple variant outputs
+                        single_outputs = []
+                        for i in range(5):
+                            with gr.Group(visible=(i == 0)) as variant_group:
+                                variant_output = gr.Textbox(
+                                    label=f"{get_text('variant')} {i+1}" if i > 0 else get_text("result"),
+                                    lines=8,
+                                    show_copy_button=True
+                                )
+                                single_outputs.append((variant_group, variant_output))
+
                 # Кликабельные примеры промтов
                 examples_title = gr.Markdown(f"### {get_text('examples_title')}")
-                single_examples = gr.Dataset(
-                    components=[single_prompt],
-                    samples=update_examples(),
-                    type="values"
-                )
-            
+
             # Вкладка пакетной обработки
             batch_tab = gr.TabItem(get_text("batch_processing"))
             with batch_tab:
                 with gr.Row():
-                    with gr.Column(scale=1):
+                    with gr.Column(scale=1, elem_classes="card-style"):
+                        gr.Markdown("### 📁 Input Files")
                         batch_images = gr.File(
                             file_count="multiple",
                             label=get_text("upload_images"),
                             file_types=["image"]
                         )
-                        batch_prompts = gr.Textbox(
-                            label=get_text("prompts_multiline"),
-                            placeholder=get_text("prompts_placeholder"),
-                            lines=5,
-                            info=get_text("prompts_info")
+
+                        gr.Markdown("### 📝 Description Settings")
+                        batch_desc_type = gr.Dropdown(
+                            choices=get_description_types(),
+                            value=get_description_types()[0],
+                            label=get_text("description_type"),
+                            info=get_text("description_type_info")
                         )
-                        batch_submit_btn = gr.Button(get_text("process_batch_btn"), variant="primary")
-                    
-                    with gr.Column(scale=1):
+                        batch_desc_length = gr.Dropdown(
+                            choices=get_description_lengths(),
+                            value=get_description_lengths()[0],
+                            label=get_text("description_length"),
+                            info=get_text("description_length_info")
+                        )
+                        batch_num_variants = gr.Slider(
+                            minimum=1,
+                            maximum=3,
+                            value=1,
+                            step=1,
+                            label=get_text("num_variants"),
+                            info=get_text("num_variants_info")
+                        )
+
+                        with gr.Accordion(get_text("custom_prompt_override"), open=False):
+                            batch_custom_prompt = gr.Textbox(
+                                placeholder=get_text("custom_prompt_placeholder"),
+                                lines=3,
+                                label=""
+                            )
+
+                        gr.Markdown("### 💾 Export Settings")
+                        batch_output_folder = gr.Textbox(
+                            label=get_text("output_folder"),
+                            placeholder=get_text("output_folder_placeholder"),
+                            value=""
+                        )
+                        batch_export_formats = gr.CheckboxGroup(
+                            choices=["TXT", "JSON", "CSV"],
+                            value=["TXT"],
+                            label=get_text("export_format")
+                        )
+
+                        batch_submit_btn = gr.Button(
+                            get_text("process_batch_btn"),
+                            variant="primary",
+                            elem_classes="generate-btn"
+                        )
+
+                    with gr.Column(scale=1, elem_classes="card-style"):
+                        gr.Markdown("### 📊 Results")
+                        batch_status = gr.Textbox(
+                            label=get_text("status"),
+                            interactive=False,
+                            elem_classes="status-box"
+                        )
                         batch_output = gr.Textbox(
                             label=get_text("results"),
-                            lines=20,
+                            lines=25,
                             show_copy_button=True
                         )
         
@@ -683,36 +1248,19 @@ def create_interface():
             global current_language
             current_language = lang
 
-            # Return updated text for all components
+            # Return updated text for key components
             return [
-                f"""
-        # {get_text("header")}
-
-        {get_text("subtitle")}
-        """,  # header_md
+                f"{get_text('subtitle')}",  # header_md
                 gr.update(label=get_text("model_selection"), info=get_text("model_info")),  # model_dropdown
                 gr.update(label=get_text("quantization"), info=get_text("quantization_info")),  # quantization_dropdown
                 gr.update(label=get_text("language"), info=get_text("language_info")),  # language_dropdown
                 gr.update(label=get_text("advanced_params")),  # advanced_accordion
-                gr.update(label=get_text("max_tokens"), info=get_text("max_tokens_info")),  # max_tokens_slider
-                gr.update(label=get_text("temperature"), info=get_text("temperature_info")),  # temperature_slider
-                gr.update(label=get_text("top_p"), info=get_text("top_p_info")),  # top_p_slider
-                gr.update(label=get_text("top_k"), info=get_text("top_k_info")),  # top_k_slider
-                gr.update(label=get_text("seed"), info=get_text("seed_info")),  # seed_number
-                gr.update(value=get_text("random_seed_btn")),  # random_seed_btn
-                gr.update(label=get_text("single_processing")),  # single_tab
-                gr.update(label=get_text("upload_image")),  # single_image
-                gr.update(label=get_text("image_url"), placeholder=get_text("image_url_placeholder")),  # single_image_url
-                gr.update(label=get_text("prompt"), placeholder=get_text("prompt_placeholder")),  # single_prompt
                 gr.update(value=get_text("generate_btn")),  # single_submit_btn
-                gr.update(label=get_text("result")),  # single_output
-                f"### {get_text('examples_title')}",  # examples_title
-                gr.update(samples=update_examples()),  # single_examples
-                gr.update(label=get_text("batch_processing")),  # batch_tab
-                gr.update(label=get_text("upload_images")),  # batch_images
-                gr.update(label=get_text("prompts_multiline"), placeholder=get_text("prompts_placeholder"), info=get_text("prompts_info")),  # batch_prompts
                 gr.update(value=get_text("process_batch_btn")),  # batch_submit_btn
-                gr.update(label=get_text("results")),  # batch_output
+                gr.update(choices=get_description_types(), value=get_description_types()[0]),  # single_desc_type
+                gr.update(choices=get_description_lengths(), value=get_description_lengths()[0]),  # single_desc_length
+                gr.update(choices=get_description_types(), value=get_description_types()[0]),  # batch_desc_type
+                gr.update(choices=get_description_lengths(), value=get_description_lengths()[0]),  # batch_desc_length
             ]
 
         language_dropdown.change(
@@ -724,45 +1272,73 @@ def create_interface():
                 quantization_dropdown,
                 language_dropdown,
                 advanced_accordion,
-                max_tokens_slider,
-                temperature_slider,
-                top_p_slider,
-                top_k_slider,
-                seed_number,
-                random_seed_btn,
-                single_tab,
-                single_image,
-                single_image_url,
-                single_prompt,
                 single_submit_btn,
-                single_output,
-                examples_title,
-                single_examples,
-                batch_tab,
-                batch_images,
-                batch_prompts,
                 batch_submit_btn,
-                batch_output,
+                single_desc_type,
+                single_desc_length,
+                batch_desc_type,
+                batch_desc_length,
             ]
         )
 
-        single_examples.click(
-            fn=lambda x: x[0] if x else "",
-            inputs=[single_examples],
-            outputs=[single_prompt]
-        )
-        
         random_seed_btn.click(
             fn=random_seed,
             outputs=seed_number
         )
-        
+
+        # Update variant visibility based on slider
+        def update_variant_visibility(num_variants):
+            updates = []
+            for i in range(5):
+                updates.append(gr.update(visible=(i < num_variants)))
+            return updates
+
+        single_num_variants.change(
+            fn=update_variant_visibility,
+            inputs=[single_num_variants],
+            outputs=[group for group, _ in single_outputs]
+        )
+
+        # Single image processing with button lock
+        def process_single_wrapper(image, image_url, desc_type, desc_length, custom_prompt, num_variants,
+                                   model_name, quantization, max_tokens, temperature, top_p, top_k, seed):
+            # Disable button at start
+            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)]
+
+            # Process and yield results
+            for status, prompt_used, results in process_single_image(
+                image, image_url, desc_type, desc_length, custom_prompt, num_variants,
+                model_name, quantization, max_tokens, temperature, top_p, top_k, seed
+            ):
+                # Prepare outputs for each variant box
+                variant_outputs = []
+                for i in range(5):
+                    if i < len(results):
+                        variant_outputs.append(gr.update(value=results[i]))
+                    else:
+                        variant_outputs.append(gr.update(value=""))
+
+                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs
+
+            # Re-enable button at end
+            final_outputs = []
+            for i in range(5):
+                if i < len(results):
+                    final_outputs.append(gr.update(value=results[i]))
+                else:
+                    final_outputs.append(gr.update(value=""))
+
+            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs
+
         single_submit_btn.click(
-            fn=process_single_image,
+            fn=process_single_wrapper,
             inputs=[
                 single_image,
                 single_image_url,
-                single_prompt,
+                single_desc_type,
+                single_desc_length,
+                single_custom_prompt,
+                single_num_variants,
                 model_dropdown,
                 quantization_dropdown,
                 max_tokens_slider,
@@ -771,14 +1347,37 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=single_output
+            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs]
         )
 
+        # Batch processing with button lock
+        def process_batch_wrapper(files, desc_type, desc_length, custom_prompt, num_variants,
+                                  output_folder, export_formats, model_name, quantization,
+                                  max_tokens, temperature, top_p, top_k, seed):
+            # Disable button at start
+            yield gr.update(value=get_text("generating"), interactive=False), "", ""
+
+            # Process and yield results
+            for status, output_text in process_batch_images(
+                files, desc_type, desc_length, custom_prompt, num_variants,
+                output_folder, export_formats, model_name, quantization,
+                max_tokens, temperature, top_p, top_k, seed
+            ):
+                yield gr.update(value=get_text("generating"), interactive=False), status, output_text
+
+            # Re-enable button at end
+            yield gr.update(value=get_text("process_batch_btn"), interactive=True), status, output_text
+
         batch_submit_btn.click(
-            fn=process_batch_images,
+            fn=process_batch_wrapper,
             inputs=[
                 batch_images,
-                batch_prompts,
+                batch_desc_type,
+                batch_desc_length,
+                batch_custom_prompt,
+                batch_num_variants,
+                batch_output_folder,
+                batch_export_formats,
                 model_dropdown,
                 quantization_dropdown,
                 max_tokens_slider,
@@ -787,16 +1386,17 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=batch_output
+            outputs=[batch_submit_btn, batch_status, batch_output]
         )
-        
+
         return demo
 
 # Создаем интерфейс Gradio
 demo = create_interface()
 
 if __name__ == "__main__":
-    demo.launch(
+    # Enable queue for progress bar support
+    demo.queue(max_size=20, default_concurrency_limit=1).launch(
         server_name="127.0.0.1",
         server_port=7860,
         share=False,
