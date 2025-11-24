@@ -277,6 +277,20 @@ class ImageDescriptionGenerator:
             else:
                 load_kwargs["torch_dtype"] = dtype
 
+            # Выбор attention implementation для ускорения
+            # Приоритет: flash_attention_2 > sdpa > eager
+            if torch.cuda.is_available():
+                try:
+                    # Flash Attention 2 - самый быстрый (требует pip install flash-attn)
+                    import flash_attn
+                    load_kwargs["attn_implementation"] = "flash_attention_2"
+                    print("Using Flash Attention 2 (fastest)")
+                except ImportError:
+                    # SDPA - встроен в PyTorch 2.0+, ~97% скорости FA2
+                    load_kwargs["attn_implementation"] = "sdpa"
+                    print("Using SDPA attention (PyTorch native, fast)")
+                    print("Tip: Install flash-attn for ~3% faster inference")
+
             self.model = Qwen3VLForConditionalGeneration.from_pretrained(
                 model_name,
                 **load_kwargs
@@ -340,15 +354,16 @@ class ImageDescriptionGenerator:
             )
             inputs = inputs.to(self.device)
             
-            # Генерируем ответ
-            with torch.no_grad():
+            # Генерируем ответ (inference_mode быстрее чем no_grad)
+            with torch.inference_mode():
                 generated_ids = self.model.generate(
                     **inputs,
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     top_p=top_p,
                     top_k=top_k,
-                    do_sample=True if temperature > 0 else False
+                    do_sample=True if temperature > 0 else False,
+                    use_cache=True,  # KV кэширование для ускорения
                 )
             
             # Декодируем результат
