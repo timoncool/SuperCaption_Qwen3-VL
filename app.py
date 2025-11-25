@@ -1348,33 +1348,57 @@ def create_interface():
                 with gr.Row():
                     with gr.Column(scale=1, elem_classes="card-style"):
                         gr.Markdown("### 📷 Input")
-                        single_image = gr.Image(
-                            type="numpy",
-                            label=get_text("upload_image"),
-                            height=300
-                        )
-                        single_image_url = gr.Textbox(
-                            label=get_text("image_url"),
-                            placeholder=get_text("image_url_placeholder"),
-                            lines=1
-                        )
+                        
+                        # Tabs for Image and Video
+                        with gr.Tabs():
+                            with gr.TabItem("🖼️ Image"):
+                                single_image = gr.Image(
+                                    type="numpy",
+                                    label=get_text("upload_image"),
+                                    height=300
+                                )
+                                single_image_url = gr.Textbox(
+                                    label=get_text("image_url"),
+                                    placeholder=get_text("image_url_placeholder"),
+                                    lines=1
+                                )
+                            with gr.TabItem("🎥 Video"):
+                                single_video = gr.Video(
+                                    label="Upload Video",
+                                    height=300
+                                )
 
                         gr.Markdown("### 📝 Description Settings")
 
-                        # Prompt preset dropdown
+                        # Prompt preset dropdown with save option
                         with gr.Row():
                             single_preset = gr.Dropdown(
                                 choices=list(load_prompt_presets().keys()),
                                 value="None",
                                 label=get_text("prompt_preset"),
                                 info=get_text("prompt_preset_info"),
-                                scale=4
+                                scale=3
                             )
                             single_refresh_presets = gr.Button(
                                 get_text("refresh_presets"),
                                 size="sm",
                                 scale=1
                             )
+                        
+                        # Save preset accordion
+                        with gr.Accordion("💾 Save Preset", open=False):
+                            with gr.Row():
+                                single_save_preset_name = gr.Textbox(
+                                    label="Preset Name",
+                                    placeholder="my_preset",
+                                    scale=2
+                                )
+                                single_save_preset_btn = gr.Button(
+                                    "Save",
+                                    size="sm",
+                                    scale=1
+                                )
+                            single_save_preset_status = gr.Markdown("")
 
                         single_desc_type = gr.Dropdown(
                             choices=get_description_types(),
