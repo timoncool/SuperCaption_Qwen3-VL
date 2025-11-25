@@ -43,8 +43,33 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
 os.makedirs(PROMPTS_DIR, exist_ok=True)
 
-# Huggingface cache directory
-HF_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+# Huggingface cache directory - check env variables first, then platform-specific defaults
+def get_hf_cache_dir():
+    """Get HuggingFace cache directory, respecting environment variables and platform defaults"""
+    # Check HuggingFace environment variables first
+    if os.environ.get("HUGGINGFACE_HUB_CACHE"):
+        return os.environ["HUGGINGFACE_HUB_CACHE"]
+    if os.environ.get("HF_HOME"):
+        return os.path.join(os.environ["HF_HOME"], "hub")
+    if os.environ.get("HF_HUB_CACHE"):
+        return os.environ["HF_HUB_CACHE"]
+
+    # Platform-specific defaults
+    if os.name == 'nt':  # Windows
+        # Windows: typically in USERPROFILE\.cache\huggingface\hub
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            cache_in_localappdata = os.path.join(local_app_data, "huggingface", "hub")
+            if os.path.exists(cache_in_localappdata):
+                return cache_in_localappdata
+        # Fall back to home directory
+        return os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+    else:
+        # Linux/Mac
+        xdg_cache = os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache"))
+        return os.path.join(xdg_cache, "huggingface", "hub")
+
+HF_CACHE_DIR = get_hf_cache_dir()
 
 def get_model_cache_size(model_id: str) -> Optional[str]:
     """Check if model is downloaded and return its size on disk"""
@@ -1267,7 +1292,7 @@ def process_single_image(
             variant_start = time.time()
             variant_seed = seed if seed == -1 else seed + i
             memory_info = get_memory_info()
-            status_msg = f"⏳ {get_text('generating')} ({get_text('variant')} {i+1}/{num_variants}) | {memory_info}"
+            status_msg = f"{get_text('generating')} ({get_text('variant')} {i+1}/{num_variants}) | {memory_info}"
 
             if use_streaming:
                 # Stream the generation for real-time output
@@ -1726,9 +1751,10 @@ def create_interface():
                                     scale=3
                                 )
                                 single_refresh_presets = gr.Button(
-                                    get_text("refresh_presets"),
+                                    "🔄",
                                     size="sm",
-                                    scale=1
+                                    scale=0,
+                                    min_width=40
                                 )
                             gr.Markdown("---")
                             gr.Markdown("**Сохранить текущий промпт как пресет:**")
@@ -1821,9 +1847,10 @@ def create_interface():
                                         scale=4
                                     )
                                     batch_refresh_presets = gr.Button(
-                                        get_text("refresh_presets"),
+                                        "🔄",
                                         size="sm",
-                                        scale=1
+                                        scale=0,
+                                        min_width=40
                                     )
 
                                 batch_desc_type = gr.Dropdown(
@@ -1939,9 +1966,10 @@ def create_interface():
                                         scale=4
                                     )
                                     batch_video_refresh_presets = gr.Button(
-                                        get_text("refresh_presets"),
+                                        "🔄",
                                         size="sm",
-                                        scale=1
+                                        scale=0,
+                                        min_width=40
                                     )
 
                                 batch_video_desc_type = gr.Dropdown(
