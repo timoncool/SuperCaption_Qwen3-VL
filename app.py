@@ -953,63 +953,83 @@ class ImageDescriptionGenerator:
         if "8B" in model_name or "32B" in model_name or "30B" in model_name:
             print(get_text("model_size_warning"))
 
-        # Освобождаем память от предыдущей модели
-        if self.model is not None:
-            del self.model
-            del self.processor
+        # Сохраняем старую модель на случай ошибки
+        old_model = self.model
+        old_processor = self.processor
+        old_model_name = self.current_model_name
+        old_quantization = self.current_quantization
+
+        try:
+            # Освобождаем память от предыдущей модели
+            if self.model is not None:
+                self.model = None
+                self.processor = None
+                del old_model
+                del old_processor
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    torch.cuda.synchronize()
+
+            # Настройка квантизации BitsAndBytes
+            bnb_config = None
+            dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+
+            if quantization == "4-bit" and torch.cuda.is_available():
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                )
+                print("Using 4-bit quantization (NF4 + double quant) - ~75% VRAM reduction")
+            elif quantization == "8-bit" and torch.cuda.is_available():
+                bnb_config = BitsAndBytesConfig(
+                    load_in_8bit=True,
+                )
+                print("Using 8-bit quantization - ~50% VRAM reduction")
+            else:
+                print("Using full precision (bfloat16/float32)")
+
+            # Загружаем новую модель с подавлением предупреждений
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                load_kwargs = {
+                    "device_map": "auto",
+                    "trust_remote_code": True,
+                }
+
+                if bnb_config is not None:
+                    load_kwargs["quantization_config"] = bnb_config
+                else:
+                    load_kwargs["torch_dtype"] = dtype
+
+                # SDPA (Scaled Dot Product Attention) - встроен в PyTorch 2.0+
+                # Быстрый и работает на Windows без доп. зависимостей
+                if torch.cuda.is_available():
+                    load_kwargs["attn_implementation"] = "sdpa"
+                    print("Using SDPA attention (PyTorch native, fast)")
+
+                self.model = Qwen3VLForConditionalGeneration.from_pretrained(
+                    model_name,
+                    **load_kwargs
+                )
+                self.processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+
+            self.current_model_name = model_name
+            self.current_quantization = quantization
+            print(get_text("model_loaded").format(model_name, self.device))
+
+        except Exception as e:
+            # При ошибке загрузки - очищаем состояние
+            self.model = None
+            self.processor = None
+            self.current_model_name = None
+            self.current_quantization = None
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-                torch.cuda.synchronize()
-
-        # Настройка квантизации BitsAndBytes
-        bnb_config = None
-        dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-
-        if quantization == "4-bit" and torch.cuda.is_available():
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_use_double_quant=True,
-            )
-            print("Using 4-bit quantization (NF4 + double quant) - ~75% VRAM reduction")
-        elif quantization == "8-bit" and torch.cuda.is_available():
-            bnb_config = BitsAndBytesConfig(
-                load_in_8bit=True,
-            )
-            print("Using 8-bit quantization - ~50% VRAM reduction")
-        else:
-            print("Using full precision (bfloat16/float32)")
-
-        # Загружаем новую модель с подавлением предупреждений
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore')
-            load_kwargs = {
-                "device_map": "auto",
-                "trust_remote_code": True,
-            }
-
-            if bnb_config is not None:
-                load_kwargs["quantization_config"] = bnb_config
-            else:
-                load_kwargs["torch_dtype"] = dtype
-
-            # SDPA (Scaled Dot Product Attention) - встроен в PyTorch 2.0+
-            # Быстрый и работает на Windows без доп. зависимостей
-            if torch.cuda.is_available():
-                load_kwargs["attn_implementation"] = "sdpa"
-                print("Using SDPA attention (PyTorch native, fast)")
-
-            self.model = Qwen3VLForConditionalGeneration.from_pretrained(
-                model_name,
-                **load_kwargs
-            )
-            self.processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
-
-        self.current_model_name = model_name
-        self.current_quantization = quantization
-        print(get_text("model_loaded").format(model_name, self.device))
+            raise Exception(f"Ошибка загрузки модели {model_name}: {str(e)}")
     
     def _prepare_inputs(
         self,
@@ -1023,6 +1043,10 @@ class ImageDescriptionGenerator:
         """Prepare inputs for generation"""
         # Загружаем модель если необходимо
         self.load_model(model_name, quantization)
+
+        # Проверяем что модель загружена
+        if self.model is None or self.processor is None:
+            raise Exception("Модель не загружена. Попробуйте выбрать другую модель или перезапустить приложение.")
 
         # Устанавливаем seed если указан
         if seed != -1:
