@@ -33,7 +33,9 @@ warnings.filterwarnings('ignore', message='.*meta device.*')
 # Global flag for stopping generation
 stop_generation_flag = False
 
-# Log capture class for console output
+# ==========================================
+# Console Log Capture for UI display
+# ==========================================
 class LogCapture:
     """Captures stdout and logs for real-time console output in UI"""
     def __init__(self):
@@ -2301,8 +2303,12 @@ def create_interface():
         def process_single_wrapper(image, video, desc_type, desc_length, custom_prompt,
                                    extra_options, character_name, num_variants,
                                    model_name, quantization, max_tokens, temperature, top_p, top_k, seed):
+            # Start capturing console output
+            log_capture.clear_logs()
+            log_capture.start_capture()
+
             # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)], None
+            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)], None, ""
 
             results = []
             download_path = None
@@ -2321,7 +2327,13 @@ def create_interface():
                     else:
                         variant_outputs.append(gr.update(value=""))
 
-                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path
+                # Get current console logs
+                console_logs = log_capture.get_logs()
+                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path, console_logs
+
+            # Stop capturing and get final logs
+            log_capture.stop_capture()
+            final_logs = log_capture.get_logs()
 
             # Re-enable button at end
             final_outputs = []
@@ -2331,7 +2343,7 @@ def create_interface():
                 else:
                     final_outputs.append(gr.update(value=""))
 
-            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs, download_path
+            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs, download_path, final_logs
 
         single_submit_btn.click(
             fn=process_single_wrapper,
@@ -2352,7 +2364,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download]
+            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Generate buttons in Image/Video tabs - same functionality
@@ -2375,7 +2387,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download]
+            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         single_generate_btn_video.click(
@@ -2397,7 +2409,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download]
+            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Stop buttons in Image/Video tabs
