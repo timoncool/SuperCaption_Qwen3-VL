@@ -27,6 +27,14 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("Note: psutil not installed. RAM monitoring will be limited.")
 
+# Optional: cv2 for video duration
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("Note: opencv-python not installed. Video duration detection will be limited.")
+
 # Suppress meta device warning (not useful)
 warnings.filterwarnings('ignore', message='.*meta device.*')
 
@@ -283,6 +291,25 @@ def get_memory_info() -> str:
             pass
 
     return " | ".join(info_parts) if info_parts else "Memory info unavailable"
+
+def get_video_duration(video_path: str) -> float:
+    """Get video duration in seconds"""
+    if not video_path or not os.path.exists(video_path):
+        return 7200.0  # Default 2 hours
+
+    if CV2_AVAILABLE:
+        try:
+            cap = cv2.VideoCapture(video_path)
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+            cap.release()
+            if fps > 0 and frame_count > 0:
+                return frame_count / fps
+        except:
+            pass
+
+    # Fallback to default
+    return 7200.0
 
 def load_prompt_presets() -> dict:
     """Load prompt presets from the prompts directory"""
@@ -1175,10 +1202,18 @@ class ImageDescriptionGenerator:
                 "video": media_path,
             }
             # Add video segment parameters if provided
+            # Get video duration to validate end time
+            video_duration = get_video_duration(media_path) if media_path else 0
+
+            # video_start: only add if > 0
             if video_start_time is not None and video_start_time > 0:
                 content_item["video_start"] = float(video_start_time)
+
+            # video_end: only add if > 0 AND < video duration (otherwise means "to end")
             if video_end_time is not None and video_end_time > 0:
-                content_item["video_end"] = float(video_end_time)
+                # If video_end is close to duration (within 1 second), don't add (means full video)
+                if video_duration > 0 and video_end_time < (video_duration - 1):
+                    content_item["video_end"] = float(video_end_time)
         else:
             content_item = {
                 "type": "image",
@@ -1657,6 +1692,20 @@ def update_examples():
         [get_text("example_4")]
     ]
 
+def update_video_sliders(video_path):
+    """Update video time sliders based on actual video duration"""
+    if not video_path:
+        return gr.update(maximum=7200), gr.update(maximum=7200)
+
+    duration = get_video_duration(video_path)
+    # Round up to nearest 10 seconds for cleaner UI
+    max_duration = ((int(duration) + 9) // 10) * 10
+
+    return (
+        gr.update(maximum=max_duration, value=0),
+        gr.update(maximum=max_duration, value=max_duration)
+    )
+
 def create_interface():
     """Create Gradio interface with current language and beautiful styling"""
     with gr.Blocks(
@@ -1825,11 +1874,11 @@ def create_interface():
                                     )
                                     video_end_time = gr.Slider(
                                         label="⏱️ Конец (секунды)",
-                                        value=0,
+                                        value=7200,
                                         minimum=0,
                                         maximum=7200,
                                         step=0.1,
-                                        info="Конец сегмента видео (0 = до конца)"
+                                        info="Конец сегмента видео (максимум = до конца)"
                                     )
                                 # Duplicate Generate/Stop buttons for quick access
                                 with gr.Row():
@@ -2530,6 +2579,13 @@ def create_interface():
         single_stop_btn_video.click(
             fn=stop_generation,
             outputs=single_status
+        )
+
+        # Update video sliders when video is loaded
+        single_video.change(
+            fn=update_video_sliders,
+            inputs=[single_video],
+            outputs=[video_start_time, video_end_time]
         )
 
         # Save preset handler
