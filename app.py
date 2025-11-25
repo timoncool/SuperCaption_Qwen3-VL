@@ -2151,6 +2151,14 @@ def create_interface():
                                     visible=True
                                 )
 
+                                # Console output
+                                batch_console_output = gr.Textbox(
+                                    label="📟 Console Output",
+                                    lines=10,
+                                    interactive=False,
+                                    show_copy_button=True
+                                )
+
                     # BATCH VIDEOS TAB
                     batch_videos_tab = gr.TabItem("🎬 Пакет видео")
                     with batch_videos_tab:
@@ -2269,7 +2277,15 @@ def create_interface():
                                     label=get_text("download_result"),
                                     visible=True
                                 )
-        
+
+                                # Console output
+                                batch_video_console_output = gr.Textbox(
+                                    label="📟 Console Output",
+                                    lines=10,
+                                    interactive=False,
+                                    show_copy_button=True
+                                )
+
         # Обработчики событий
 
         # Function to update extra options based on media type
@@ -2623,8 +2639,12 @@ def create_interface():
                                   extra_options, character_name, num_variants,
                                   output_folder, export_formats, model_name, quantization,
                                   max_tokens, temperature, top_p, top_k, seed):
+            # Start capturing console output
+            log_capture.clear_logs()
+            log_capture.start_capture()
+
             # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", None
+            yield gr.update(value=get_text("generating"), interactive=False), "", "", None, ""
 
             download_path = None
 
@@ -2635,10 +2655,14 @@ def create_interface():
                 output_folder, export_formats, model_name, quantization,
                 max_tokens, temperature, top_p, top_k, seed
             ):
-                yield gr.update(value=get_text("generating"), interactive=False), status, output_text, download_path
+                yield gr.update(value=get_text("generating"), interactive=False), status, output_text, download_path, log_capture.get_logs()
+
+            # Stop capturing and get final logs
+            log_capture.stop_capture()
+            final_logs = log_capture.get_logs()
 
             # Re-enable button at end
-            yield gr.update(value=get_text("process_batch_btn"), interactive=True), status, output_text, download_path
+            yield gr.update(value=get_text("process_batch_btn"), interactive=True), status, output_text, download_path, final_logs
 
         batch_submit_btn.click(
             fn=process_batch_wrapper,
@@ -2660,7 +2684,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[batch_submit_btn, batch_status, batch_output, batch_download]
+            outputs=[batch_submit_btn, batch_status, batch_output, batch_download, batch_console_output]
         )
 
         # Batch video processing with is_video=True
@@ -2668,8 +2692,12 @@ def create_interface():
                                         extra_options, character_name, num_variants,
                                         output_folder, export_formats, model_name, quantization,
                                         max_tokens, temperature, top_p, top_k, seed):
+            # Start capturing console output
+            log_capture.clear_logs()
+            log_capture.start_capture()
+
             # Disable button at start
-            yield gr.update(value="⏳ Processing...", interactive=False), "", "", None
+            yield gr.update(value="⏳ Processing...", interactive=False), "", "", None, ""
 
             download_path = None
 
@@ -2681,10 +2709,14 @@ def create_interface():
                 max_tokens, temperature, top_p, top_k, seed,
                 is_video=True  # KEY DIFFERENCE: process as videos
             ):
-                yield gr.update(value="⏳ Processing...", interactive=False), status, output_text, download_path
+                yield gr.update(value="⏳ Processing...", interactive=False), status, output_text, download_path, log_capture.get_logs()
+
+            # Stop capturing and get final logs
+            log_capture.stop_capture()
+            final_logs = log_capture.get_logs()
 
             # Re-enable button at end
-            yield gr.update(value="🚀 Обработать видео", interactive=True), status, output_text, download_path
+            yield gr.update(value="🚀 Обработать видео", interactive=True), status, output_text, download_path, final_logs
 
         batch_video_submit_btn.click(
             fn=process_batch_video_wrapper,
@@ -2706,7 +2738,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[batch_video_submit_btn, batch_video_status, batch_video_output, batch_video_download]
+            outputs=[batch_video_submit_btn, batch_video_status, batch_video_output, batch_video_download, batch_video_console_output]
         )
 
         return demo
