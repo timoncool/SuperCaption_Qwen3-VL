@@ -24,7 +24,7 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("Note: psutil not installed. RAM monitoring will be limited.")
 
-# Suppress specific warnings
+# Suppress meta device warning (not useful)
 warnings.filterwarnings('ignore', message='.*meta device.*')
 
 # Global flag for stopping generation
@@ -77,31 +77,31 @@ def get_model_cache_size(model_id: str) -> Optional[str]:
 # Available models (without MOE models which have different architecture)
 AVAILABLE_MODELS = [
     # Abliterated models (без цензуры) - рекомендуемые
-    ("2B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated", "~1.2GB"),
-    ("2B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Thinking-abliterated", "~1.2GB"),
-    ("4B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated", "~2.5GB"),
-    ("4B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Thinking-abliterated", "~2.5GB"),
-    ("8B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated", "~5GB"),
-    ("8B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Thinking-abliterated", "~5GB"),
-    ("32B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Instruct-abliterated", "~18GB"),
-    ("32B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Thinking-abliterated", "~18GB"),
+    ("2B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated"),
+    ("2B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Thinking-abliterated"),
+    ("4B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated"),
+    ("4B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Thinking-abliterated"),
+    ("8B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated"),
+    ("8B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Thinking-abliterated"),
+    ("32B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Instruct-abliterated"),
+    ("32B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Thinking-abliterated"),
     # Original Qwen models
-    ("Qwen 2B Instruct", "Qwen/Qwen3-VL-2B-Instruct", "~1.2GB"),
-    ("Qwen 4B Instruct", "Qwen/Qwen3-VL-4B-Instruct", "~2.5GB"),
-    ("Qwen 8B Instruct", "Qwen/Qwen3-VL-8B-Instruct", "~5GB"),
+    ("Qwen 2B Instruct", "Qwen/Qwen3-VL-2B-Instruct"),
+    ("Qwen 4B Instruct", "Qwen/Qwen3-VL-4B-Instruct"),
+    ("Qwen 8B Instruct", "Qwen/Qwen3-VL-8B-Instruct"),
 ]
 
 def get_model_choices():
     """Get model choices with download status indicator"""
     choices = []
-    for name, model_id, estimated_size in AVAILABLE_MODELS:
+    for name, model_id in AVAILABLE_MODELS:
         cached_size = get_model_cache_size(model_id)
         if cached_size:
-            # Model is downloaded - show actual size with checkmark
-            display_name = f"✓ {name} [{cached_size}]"
+            # Model is downloaded - show size and ЗАГРУЖЕНО
+            display_name = f"✅ {name} — {cached_size} ЗАГРУЖЕНО"
         else:
-            # Model not downloaded - show estimated size
-            display_name = f"  {name} ({estimated_size} 4-bit)"
+            # Model not downloaded
+            display_name = f"⬜ {name}"
         choices.append((display_name, model_id))
     return choices
 
@@ -948,10 +948,6 @@ class ImageDescriptionGenerator:
 
         print(get_text("loading_model").format(model_name))
         print(f"Quantization: {quantization}")
-
-        # Предупреждение о больших моделях
-        if "8B" in model_name or "32B" in model_name or "30B" in model_name:
-            print(get_text("model_size_warning"))
 
         # Сохраняем старую модель на случай ошибки
         old_model = self.model
