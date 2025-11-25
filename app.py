@@ -1844,7 +1844,8 @@ def create_interface():
                                     single_stop_btn_image = gr.Button(
                                         get_text("stop_btn"),
                                         variant="stop",
-                                        scale=1
+                                        scale=1,
+                                        interactive=False
                                     )
 
                             video_tab = gr.TabItem("🎥 Видео")
@@ -1882,7 +1883,8 @@ def create_interface():
                                     single_stop_btn_video = gr.Button(
                                         get_text("stop_btn"),
                                         variant="stop",
-                                        scale=1
+                                        scale=1,
+                                        interactive=False
                                     )
 
                         gr.Markdown("### 📝 Настройки описания")
@@ -1976,7 +1978,8 @@ def create_interface():
                             single_stop_btn = gr.Button(
                                 get_text("stop_btn"),
                                 variant="stop",
-                                scale=1
+                                scale=1,
+                                interactive=False
                             )
 
                     with gr.Column(scale=1, elem_classes="card-style"):
@@ -2438,8 +2441,16 @@ def create_interface():
             log_capture.clear_logs()
             log_capture.start_capture()
 
-            # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)], None, ""
+            # Disable all generate buttons, enable all stop buttons
+            yield (
+                gr.update(value=get_text("generating"), interactive=False),  # single_submit_btn
+                gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_image
+                gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_video
+                gr.update(interactive=True),   # single_stop_btn
+                gr.update(interactive=True),   # single_stop_btn_image
+                gr.update(interactive=True),   # single_stop_btn_video
+                "", "", *[gr.update(value="") for _ in range(5)], None, ""
+            )
 
             results = []
             download_path = None
@@ -2463,8 +2474,16 @@ def create_interface():
                 size_str = f" [{cached_size}]" if cached_size else ""
                 status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
 
-                # console_logs already received from process_single_image
-                yield gr.update(value=get_text("generating"), interactive=False), status_with_model, prompt_used, *variant_outputs, download_path, console_logs
+                # Keep buttons disabled during generation
+                yield (
+                    gr.update(value=get_text("generating"), interactive=False),  # single_submit_btn
+                    gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_image
+                    gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_video
+                    gr.update(interactive=True),   # single_stop_btn
+                    gr.update(interactive=True),   # single_stop_btn_image
+                    gr.update(interactive=True),   # single_stop_btn_video
+                    status_with_model, prompt_used, *variant_outputs, download_path, console_logs
+                )
 
             # Stop capturing and get final logs
             log_capture.stop_capture()
@@ -2483,7 +2502,16 @@ def create_interface():
             size_str = f" [{cached_size}]" if cached_size else ""
             final_status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
 
-            yield gr.update(value=get_text("generate_btn"), interactive=True), final_status_with_model, prompt_used, *final_outputs, download_path, final_logs
+            # Re-enable all generate buttons, disable all stop buttons
+            yield (
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_submit_btn
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_generate_btn_image
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_generate_btn_video
+                gr.update(interactive=False),  # single_stop_btn
+                gr.update(interactive=False),  # single_stop_btn_image
+                gr.update(interactive=False),  # single_stop_btn_video
+                final_status_with_model, prompt_used, *final_outputs, download_path, final_logs
+            )
 
         single_submit_btn.click(
             fn=process_single_wrapper,
@@ -2506,7 +2534,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Generate buttons in Image/Video tabs - same functionality
@@ -2531,7 +2559,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         single_generate_btn_video.click(
@@ -2555,7 +2583,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Stop buttons in Image/Video tabs
