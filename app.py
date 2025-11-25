@@ -24,8 +24,13 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("Note: psutil not installed. RAM monitoring will be limited.")
 
-# Suppress specific warnings
+# Suppress annoying warnings
 warnings.filterwarnings('ignore', message='.*meta device.*')
+warnings.filterwarnings('ignore', message='.*deprecated.*')
+warnings.filterwarnings('ignore', message='.*torchvision.*')
+warnings.filterwarnings('ignore', message='.*TorchCodec.*')
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 # Global flag for stopping generation
 stop_generation_flag = False
@@ -948,10 +953,6 @@ class ImageDescriptionGenerator:
 
         print(get_text("loading_model").format(model_name))
         print(f"Quantization: {quantization}")
-
-        # Предупреждение о больших моделях
-        if "8B" in model_name or "32B" in model_name or "30B" in model_name:
-            print(get_text("model_size_warning"))
 
         # Сохраняем старую модель на случай ошибки
         old_model = self.model
