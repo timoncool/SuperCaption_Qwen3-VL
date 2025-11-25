@@ -996,7 +996,7 @@ def process_single_image(
         return
 
     temp_path = None
-    num_variants = int(num_variants)
+    num_variants = int(num_variants) if num_variants and str(num_variants).strip() else 1
 
     try:
         # Priority: URL over uploaded image (if both provided, URL takes precedence)
