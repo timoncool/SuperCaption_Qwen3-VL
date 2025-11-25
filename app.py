@@ -24,13 +24,8 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     print("Note: psutil not installed. RAM monitoring will be limited.")
 
-# Suppress annoying warnings
+# Suppress meta device warning (not useful)
 warnings.filterwarnings('ignore', message='.*meta device.*')
-warnings.filterwarnings('ignore', message='.*deprecated.*')
-warnings.filterwarnings('ignore', message='.*torchvision.*')
-warnings.filterwarnings('ignore', message='.*TorchCodec.*')
-warnings.filterwarnings('ignore', category=UserWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
 
 # Global flag for stopping generation
 stop_generation_flag = False
