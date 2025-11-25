@@ -2397,7 +2397,7 @@ def create_interface():
             download_path = None
 
             # Process and yield results
-            for status, prompt_used, results, download_path in process_single_image(
+            for status, prompt_used, results, download_path, console_logs in process_single_image(
                 image, video, video_start_time, video_end_time, desc_type, desc_length, custom_prompt,
                 extra_options, character_name, num_variants,
                 model_name, quantization, max_tokens, temperature, top_p, top_k, seed
@@ -2415,8 +2415,7 @@ def create_interface():
                 size_str = f" [{cached_size}]" if cached_size else ""
                 model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
 
-                # Get current console logs
-                console_logs = log_capture.get_logs()
+                # console_logs already received from process_single_image
                 yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path, console_logs, model_indicator
 
             # Stop capturing and get final logs
