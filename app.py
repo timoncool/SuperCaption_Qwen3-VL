@@ -1142,7 +1142,9 @@ class ImageDescriptionGenerator:
         model_name: str,
         quantization: str,
         seed: int,
-        is_video: bool = False
+        is_video: bool = False,
+        video_start_time = None,
+        video_end_time = None
     ):
         """Prepare inputs for generation"""
         # Загружаем модель если необходимо
@@ -1165,6 +1167,11 @@ class ImageDescriptionGenerator:
                 "type": "video",
                 "video": media_path,
             }
+            # Add video segment parameters if provided
+            if video_start_time is not None and video_start_time > 0:
+                content_item["video_start"] = float(video_start_time)
+            if video_end_time is not None and video_end_time > 0:
+                content_item["video_end"] = float(video_end_time)
         else:
             content_item = {
                 "type": "image",
@@ -1209,12 +1216,15 @@ class ImageDescriptionGenerator:
         top_p: float = 0.9,
         top_k: int = 50,
         seed: int = -1,
-        is_video: bool = False
+        is_video: bool = False,
+        video_start_time = None,
+        video_end_time = None
     ) -> str:
         """Генерация описания для одного изображения/видео (без streaming)"""
         try:
             inputs = self._prepare_inputs(
-                image_path, prompt, model_name, quantization, seed, is_video
+                image_path, prompt, model_name, quantization, seed, is_video,
+                video_start_time, video_end_time
             )
 
             # Non-streaming generation (inference_mode быстрее чем no_grad)
@@ -1256,12 +1266,15 @@ class ImageDescriptionGenerator:
         top_p: float = 0.9,
         top_k: int = 50,
         seed: int = -1,
-        is_video: bool = False
+        is_video: bool = False,
+        video_start_time = None,
+        video_end_time = None
     ) -> Generator[str, None, None]:
         """Генерация описания для одного изображения/видео со streaming"""
         try:
             inputs = self._prepare_inputs(
-                image_path, prompt, model_name, quantization, seed, is_video
+                image_path, prompt, model_name, quantization, seed, is_video,
+                video_start_time, video_end_time
             )
 
             streamer = TextIteratorStreamer(
@@ -1303,6 +1316,8 @@ generator = ImageDescriptionGenerator()
 def process_single_image(
     image,
     video,
+    video_start_time,
+    video_end_time,
     description_type: str,
     description_length: str,
     custom_prompt: str,
@@ -1397,7 +1412,9 @@ def process_single_image(
                     top_p=top_p,
                     top_k=top_k,
                     seed=variant_seed,
-                    is_video=is_video
+                    is_video=is_video,
+                    video_start_time=video_start_time,
+                    video_end_time=video_end_time
                 ):
                     if stop_generation_flag:
                         break
@@ -1420,7 +1437,9 @@ def process_single_image(
                     top_p=top_p,
                     top_k=top_k,
                     seed=variant_seed,
-                    is_video=is_video
+                    is_video=is_video,
+                    video_start_time=video_start_time,
+                    video_end_time=video_end_time
                 )
 
             variant_time = time.time() - variant_start
@@ -1787,6 +1806,20 @@ def create_interface():
                                     label="Загрузите видео",
                                     height=300
                                 )
+                                # Video segment controls
+                                with gr.Row():
+                                    video_start_time = gr.Number(
+                                        label="⏱️ Начало (секунды)",
+                                        value=None,
+                                        minimum=0,
+                                        info="Оставьте пустым для обработки с начала видео"
+                                    )
+                                    video_end_time = gr.Number(
+                                        label="⏱️ Конец (секунды)",
+                                        value=None,
+                                        minimum=0,
+                                        info="Оставьте пустым для обработки до конца видео"
+                                    )
                                 # Duplicate Generate/Stop buttons for quick access
                                 with gr.Row():
                                     single_generate_btn_video = gr.Button(
@@ -2347,7 +2380,7 @@ def create_interface():
         )
 
         # Single image processing with button lock
-        def process_single_wrapper(image, video, desc_type, desc_length, custom_prompt,
+        def process_single_wrapper(image, video, video_start_time, video_end_time, desc_type, desc_length, custom_prompt,
                                    extra_options, character_name, num_variants,
                                    model_name, quantization, max_tokens, temperature, top_p, top_k, seed):
             # Start capturing console output
@@ -2365,7 +2398,7 @@ def create_interface():
 
             # Process and yield results
             for status, prompt_used, results, download_path in process_single_image(
-                image, video, desc_type, desc_length, custom_prompt,
+                image, video, video_start_time, video_end_time, desc_type, desc_length, custom_prompt,
                 extra_options, character_name, num_variants,
                 model_name, quantization, max_tokens, temperature, top_p, top_k, seed
             ):
@@ -2455,6 +2488,8 @@ def create_interface():
             inputs=[
                 single_image,
                 single_video,
+                video_start_time,
+                video_end_time,
                 single_desc_type,
                 single_desc_length,
                 single_custom_prompt,
