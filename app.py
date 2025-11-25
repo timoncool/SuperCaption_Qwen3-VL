@@ -37,32 +37,39 @@ stop_generation_flag = False
 # Console Log Capture for UI display
 # ==========================================
 class LogCapture:
-    """Captures stdout and logs for real-time console output in UI"""
+    """Captures stdout AND stderr for real-time console output in UI"""
     def __init__(self):
         self.log_buffer = io.StringIO()
         self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
         self.is_capturing = False
 
     def start_capture(self):
-        """Start capturing stdout"""
+        """Start capturing stdout and stderr"""
         if not self.is_capturing:
+            self.log_buffer = io.StringIO()
             sys.stdout = self
+            sys.stderr = self
             self.is_capturing = True
 
     def stop_capture(self):
-        """Stop capturing stdout"""
+        """Stop capturing stdout and stderr"""
         if self.is_capturing:
             sys.stdout = self.original_stdout
+            sys.stderr = self.original_stderr
             self.is_capturing = False
 
     def write(self, message):
         """Write to both original stdout and buffer"""
-        self.original_stdout.write(message)
+        if self.original_stdout:
+            self.original_stdout.write(message)
+            self.original_stdout.flush()
         self.log_buffer.write(message)
 
     def flush(self):
         """Flush stdout"""
-        self.original_stdout.flush()
+        if self.original_stdout:
+            self.original_stdout.flush()
 
     def get_logs(self):
         """Get captured logs"""
@@ -2346,7 +2353,45 @@ def create_interface():
             model_indicator = f"⏳ **Загрузка модели** {model_name}..."
 
             # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)], None, "", model_indicator
+            yield gr.update(value=get_text("generating"), interactive=False), "⏳ Подготовка...", "", *[gr.update(value="") for _ in range(5)], None, "", model_indicator
+
+            # Pre-load model in background thread with progress updates
+            model_loaded = [False]
+            model_error = [None]
+
+            def load_model_thread():
+                try:
+                    generator.load_model(model_name, quantization)
+                    model_loaded[0] = True
+                except Exception as e:
+                    model_error[0] = str(e)
+                    model_loaded[0] = True
+
+            # Start loading model in background
+            load_thread = Thread(target=load_model_thread)
+            load_thread.start()
+
+            # Yield progress while model is loading
+            while not model_loaded[0]:
+                time.sleep(0.5)
+                console_logs = log_capture.get_logs()
+                # Get last 50 lines for display
+                log_lines = console_logs.split('\n')
+                display_logs = '\n'.join(log_lines[-50:]) if len(log_lines) > 50 else console_logs
+                yield gr.update(value=get_text("generating"), interactive=False), "⏳ Загрузка модели...", "", *[gr.update(value="") for _ in range(5)], None, display_logs, model_indicator
+
+            load_thread.join()
+
+            # Check for errors
+            if model_error[0]:
+                log_capture.stop_capture()
+                yield gr.update(value=get_text("generate_btn"), interactive=True), f"❌ Ошибка: {model_error[0]}", "", *[gr.update(value="") for _ in range(5)], None, log_capture.get_logs(), f"❌ Ошибка загрузки модели"
+                return
+
+            # Update model indicator after loading
+            cached_size = get_model_cache_size(model_name)
+            size_str = f" [{cached_size}]" if cached_size else ""
+            model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
 
             results = []
             download_path = None
@@ -2365,18 +2410,17 @@ def create_interface():
                     else:
                         variant_outputs.append(gr.update(value=""))
 
-                # Update model indicator
-                cached_size = get_model_cache_size(model_name)
-                size_str = f" [{cached_size}]" if cached_size else ""
-                model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
-
                 # Get current console logs
                 console_logs = log_capture.get_logs()
-                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path, console_logs, model_indicator
+                log_lines = console_logs.split('\n')
+                display_logs = '\n'.join(log_lines[-50:]) if len(log_lines) > 50 else console_logs
+                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path, display_logs, model_indicator
 
             # Stop capturing and get final logs
             log_capture.stop_capture()
             final_logs = log_capture.get_logs()
+            log_lines = final_logs.split('\n')
+            display_logs = '\n'.join(log_lines[-50:]) if len(log_lines) > 50 else final_logs
 
             # Re-enable button at end
             final_outputs = []
@@ -2391,7 +2435,7 @@ def create_interface():
             size_str = f" [{cached_size}]" if cached_size else ""
             final_model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
 
-            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs, download_path, final_logs, final_model_indicator
+            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs, download_path, display_logs, final_model_indicator
 
         single_submit_btn.click(
             fn=process_single_wrapper,
