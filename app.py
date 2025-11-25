@@ -1765,12 +1765,6 @@ def create_interface():
                 scale=1
             )
 
-        # Индикатор текущей загруженной модели
-        current_model_indicator = gr.Markdown(
-            value="📭 **Модель не загружена** — будет загружена при первой генерации",
-            elem_id="model_indicator"
-        )
-
         # Расширенные параметры
         advanced_accordion = gr.Accordion(get_text("advanced_params"), open=False)
         with advanced_accordion:
@@ -1850,7 +1844,8 @@ def create_interface():
                                     single_stop_btn_image = gr.Button(
                                         get_text("stop_btn"),
                                         variant="stop",
-                                        scale=1
+                                        scale=1,
+                                        interactive=False
                                     )
 
                             video_tab = gr.TabItem("🎥 Видео")
@@ -1888,7 +1883,8 @@ def create_interface():
                                     single_stop_btn_video = gr.Button(
                                         get_text("stop_btn"),
                                         variant="stop",
-                                        scale=1
+                                        scale=1,
+                                        interactive=False
                                     )
 
                         gr.Markdown("### 📝 Настройки описания")
@@ -1982,7 +1978,8 @@ def create_interface():
                             single_stop_btn = gr.Button(
                                 get_text("stop_btn"),
                                 variant="stop",
-                                scale=1
+                                scale=1,
+                                interactive=False
                             )
 
                     with gr.Column(scale=1, elem_classes="card-style"):
@@ -2154,6 +2151,14 @@ def create_interface():
                                     visible=True
                                 )
 
+                                # Console output
+                                batch_console_output = gr.Textbox(
+                                    label="📟 Console Output",
+                                    lines=10,
+                                    interactive=False,
+                                    show_copy_button=True
+                                )
+
                     # BATCH VIDEOS TAB
                     batch_videos_tab = gr.TabItem("🎬 Пакет видео")
                     with batch_videos_tab:
@@ -2272,7 +2277,15 @@ def create_interface():
                                     label=get_text("download_result"),
                                     visible=True
                                 )
-        
+
+                                # Console output
+                                batch_video_console_output = gr.Textbox(
+                                    label="📟 Console Output",
+                                    lines=10,
+                                    interactive=False,
+                                    show_copy_button=True
+                                )
+
         # Обработчики событий
 
         # Function to update extra options based on media type
@@ -2444,11 +2457,16 @@ def create_interface():
             log_capture.clear_logs()
             log_capture.start_capture()
 
-            # Model indicator - loading
-            model_indicator = f"⏳ **Загрузка модели** {model_name}..."
-
-            # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", *[gr.update(value="") for _ in range(5)], None, "", model_indicator
+            # Disable all generate buttons, enable all stop buttons
+            yield (
+                gr.update(value=get_text("generating"), interactive=False),  # single_submit_btn
+                gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_image
+                gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_video
+                gr.update(interactive=True),   # single_stop_btn
+                gr.update(interactive=True),   # single_stop_btn_image
+                gr.update(interactive=True),   # single_stop_btn_video
+                "", "", *[gr.update(value="") for _ in range(5)], None, ""
+            )
 
             results = []
             download_path = None
@@ -2467,13 +2485,21 @@ def create_interface():
                     else:
                         variant_outputs.append(gr.update(value=""))
 
-                # Update model indicator
+                # Add model info to status
                 cached_size = get_model_cache_size(model_name)
                 size_str = f" [{cached_size}]" if cached_size else ""
-                model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
+                status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
 
-                # console_logs already received from process_single_image
-                yield gr.update(value=get_text("generating"), interactive=False), status, prompt_used, *variant_outputs, download_path, console_logs, model_indicator
+                # Keep buttons disabled during generation
+                yield (
+                    gr.update(value=get_text("generating"), interactive=False),  # single_submit_btn
+                    gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_image
+                    gr.update(value=get_text("generating"), interactive=False),  # single_generate_btn_video
+                    gr.update(interactive=True),   # single_stop_btn
+                    gr.update(interactive=True),   # single_stop_btn_image
+                    gr.update(interactive=True),   # single_stop_btn_video
+                    status_with_model, prompt_used, *variant_outputs, download_path, console_logs
+                )
 
             # Stop capturing and get final logs
             log_capture.stop_capture()
@@ -2487,12 +2513,21 @@ def create_interface():
                 else:
                     final_outputs.append(gr.update(value=""))
 
-            # Final model indicator
+            # Add model info to final status
             cached_size = get_model_cache_size(model_name)
             size_str = f" [{cached_size}]" if cached_size else ""
-            final_model_indicator = f"✅ **{model_name}**{size_str} | {quantization}"
+            final_status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
 
-            yield gr.update(value=get_text("generate_btn"), interactive=True), status, prompt_used, *final_outputs, download_path, final_logs, final_model_indicator
+            # Re-enable all generate buttons, disable all stop buttons
+            yield (
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_submit_btn
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_generate_btn_image
+                gr.update(value=get_text("generate_btn"), interactive=True),  # single_generate_btn_video
+                gr.update(interactive=False),  # single_stop_btn
+                gr.update(interactive=False),  # single_stop_btn_image
+                gr.update(interactive=False),  # single_stop_btn_video
+                final_status_with_model, prompt_used, *final_outputs, download_path, final_logs
+            )
 
         single_submit_btn.click(
             fn=process_single_wrapper,
@@ -2515,7 +2550,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output, current_model_indicator]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Generate buttons in Image/Video tabs - same functionality
@@ -2540,7 +2575,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output, current_model_indicator]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         single_generate_btn_video.click(
@@ -2564,7 +2599,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[single_submit_btn, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output, current_model_indicator]
+            outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_status, single_prompt_used] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
         # Duplicate Stop buttons in Image/Video tabs
@@ -2604,8 +2639,12 @@ def create_interface():
                                   extra_options, character_name, num_variants,
                                   output_folder, export_formats, model_name, quantization,
                                   max_tokens, temperature, top_p, top_k, seed):
+            # Start capturing console output
+            log_capture.clear_logs()
+            log_capture.start_capture()
+
             # Disable button at start
-            yield gr.update(value=get_text("generating"), interactive=False), "", "", None
+            yield gr.update(value=get_text("generating"), interactive=False), "", "", None, ""
 
             download_path = None
 
@@ -2616,10 +2655,14 @@ def create_interface():
                 output_folder, export_formats, model_name, quantization,
                 max_tokens, temperature, top_p, top_k, seed
             ):
-                yield gr.update(value=get_text("generating"), interactive=False), status, output_text, download_path
+                yield gr.update(value=get_text("generating"), interactive=False), status, output_text, download_path, log_capture.get_logs()
+
+            # Stop capturing and get final logs
+            log_capture.stop_capture()
+            final_logs = log_capture.get_logs()
 
             # Re-enable button at end
-            yield gr.update(value=get_text("process_batch_btn"), interactive=True), status, output_text, download_path
+            yield gr.update(value=get_text("process_batch_btn"), interactive=True), status, output_text, download_path, final_logs
 
         batch_submit_btn.click(
             fn=process_batch_wrapper,
@@ -2641,7 +2684,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[batch_submit_btn, batch_status, batch_output, batch_download]
+            outputs=[batch_submit_btn, batch_status, batch_output, batch_download, batch_console_output]
         )
 
         # Batch video processing with is_video=True
@@ -2649,8 +2692,12 @@ def create_interface():
                                         extra_options, character_name, num_variants,
                                         output_folder, export_formats, model_name, quantization,
                                         max_tokens, temperature, top_p, top_k, seed):
+            # Start capturing console output
+            log_capture.clear_logs()
+            log_capture.start_capture()
+
             # Disable button at start
-            yield gr.update(value="⏳ Processing...", interactive=False), "", "", None
+            yield gr.update(value="⏳ Processing...", interactive=False), "", "", None, ""
 
             download_path = None
 
@@ -2662,10 +2709,14 @@ def create_interface():
                 max_tokens, temperature, top_p, top_k, seed,
                 is_video=True  # KEY DIFFERENCE: process as videos
             ):
-                yield gr.update(value="⏳ Processing...", interactive=False), status, output_text, download_path
+                yield gr.update(value="⏳ Processing...", interactive=False), status, output_text, download_path, log_capture.get_logs()
+
+            # Stop capturing and get final logs
+            log_capture.stop_capture()
+            final_logs = log_capture.get_logs()
 
             # Re-enable button at end
-            yield gr.update(value="🚀 Обработать видео", interactive=True), status, output_text, download_path
+            yield gr.update(value="🚀 Обработать видео", interactive=True), status, output_text, download_path, final_logs
 
         batch_video_submit_btn.click(
             fn=process_batch_video_wrapper,
@@ -2687,7 +2738,7 @@ def create_interface():
                 top_k_slider,
                 seed_number
             ],
-            outputs=[batch_video_submit_btn, batch_video_status, batch_video_output, batch_video_download]
+            outputs=[batch_video_submit_btn, batch_video_status, batch_video_output, batch_video_download, batch_video_console_output]
         )
 
         return demo
