@@ -1622,15 +1622,18 @@ def update_examples():
 def create_interface():
     """Create Gradio interface with current language and beautiful styling"""
     with gr.Blocks(
-        title="SuperCaption Qwen3-VL PRO",
+        title="SuperCaption Qwen3-VL NSFW",
         theme=gr.themes.Soft(primary_hue="indigo", secondary_hue="purple", neutral_hue="slate"),
         css=CUSTOM_CSS
     ) as demo:
         # Beautiful gradient header with credits
         gr.HTML("""
         <div class="main-header">
-            <h1>🎬 SuperCaption Qwen3-VL PRO</h1>
+            <h1>🎬 SuperCaption Qwen3-VL NSFW</h1>
             <p>Генератор описаний и тегов для фото и видео</p>
+            <p style="font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.9;">
+                🔓 Используются <b>Abliterated</b> модели — работа с любым контентом без цензуры
+            </p>
             <p style="font-size: 0.9rem; margin-top: 0.75rem; opacity: 0.85;">
                 Портативная версия от <a href="https://t.me/nerual_dreming" target="_blank">Nerual Dreming</a> и
                 <a href="https://t.me/ruweb24" target="_blank">Slait</a> |
