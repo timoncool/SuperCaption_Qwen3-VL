@@ -43,6 +43,68 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(DATASETS_DIR, exist_ok=True)
 os.makedirs(PROMPTS_DIR, exist_ok=True)
 
+# Huggingface cache directory
+HF_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+
+def get_model_cache_size(model_id: str) -> Optional[str]:
+    """Check if model is downloaded and return its size on disk"""
+    try:
+        # Convert model_id to cache folder name format
+        # huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated -> models--huihui-ai--Huihui-Qwen3-VL-2B-Instruct-abliterated
+        cache_name = "models--" + model_id.replace("/", "--")
+        cache_path = os.path.join(HF_CACHE_DIR, cache_name)
+
+        if os.path.exists(cache_path):
+            # Calculate total size
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(cache_path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.exists(fp):
+                        total_size += os.path.getsize(fp)
+
+            # Convert to human-readable format
+            if total_size >= 1024 ** 3:
+                return f"{total_size / (1024 ** 3):.1f}GB"
+            elif total_size >= 1024 ** 2:
+                return f"{total_size / (1024 ** 2):.0f}MB"
+            else:
+                return f"{total_size / 1024:.0f}KB"
+        return None
+    except:
+        return None
+
+# Available models (without MOE models which have different architecture)
+AVAILABLE_MODELS = [
+    # Abliterated models (без цензуры) - рекомендуемые
+    ("2B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated", "~1.2GB"),
+    ("2B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-2B-Thinking-abliterated", "~1.2GB"),
+    ("4B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated", "~2.5GB"),
+    ("4B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-4B-Thinking-abliterated", "~2.5GB"),
+    ("8B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated", "~5GB"),
+    ("8B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-8B-Thinking-abliterated", "~5GB"),
+    ("32B Instruct Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Instruct-abliterated", "~18GB"),
+    ("32B Thinking Abliterated", "huihui-ai/Huihui-Qwen3-VL-32B-Thinking-abliterated", "~18GB"),
+    # Original Qwen models
+    ("Qwen 2B Instruct", "Qwen/Qwen3-VL-2B-Instruct", "~1.2GB"),
+    ("Qwen 4B Instruct", "Qwen/Qwen3-VL-4B-Instruct", "~2.5GB"),
+    ("Qwen 8B Instruct", "Qwen/Qwen3-VL-8B-Instruct", "~5GB"),
+]
+
+def get_model_choices():
+    """Get model choices with download status indicator"""
+    choices = []
+    for name, model_id, estimated_size in AVAILABLE_MODELS:
+        cached_size = get_model_cache_size(model_id)
+        if cached_size:
+            # Model is downloaded - show actual size with checkmark
+            display_name = f"✓ {name} [{cached_size}]"
+        else:
+            # Model not downloaded - show estimated size
+            display_name = f"  {name} ({estimated_size} 4-bit)"
+        choices.append((display_name, model_id))
+    return choices
+
 # Extra options for description enhancement (IMAGE)
 EXTRA_OPTIONS = {
     "en": {
@@ -169,14 +231,20 @@ def load_prompt_presets() -> dict:
 def save_prompt_preset(name: str, prompt: str) -> str:
     """Save a prompt preset to the prompts directory"""
     if not name or not name.strip():
+        if current_language == "ru":
+            return "❌ Введите имя пресета"
         return "❌ Please provide a preset name"
 
     if not prompt or not prompt.strip():
+        if current_language == "ru":
+            return "❌ Введите промпт для сохранения"
         return "❌ Please provide a prompt to save"
 
     # Sanitize filename
     safe_name = "".join(c for c in name if c.isalnum() or c in "_ -").strip()
     if not safe_name:
+        if current_language == "ru":
+            return "❌ Недопустимое имя пресета"
         return "❌ Invalid preset name"
 
     try:
@@ -184,8 +252,12 @@ def save_prompt_preset(name: str, prompt: str) -> str:
         filepath = os.path.join(PROMPTS_DIR, f"{safe_name}.txt")
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(prompt.strip())
+        if current_language == "ru":
+            return f"✅ Пресет '{safe_name}' сохранён!"
         return f"✅ Preset '{safe_name}' saved successfully!"
     except Exception as e:
+        if current_language == "ru":
+            return f"❌ Ошибка сохранения: {str(e)}"
         return f"❌ Error saving preset: {str(e)}"
 
 def save_text_to_file(text: str, filename: str = "result.txt") -> str:
@@ -254,9 +326,10 @@ CUSTOM_CSS = """
 
 /* Generate button styling */
 .generate-btn {
-    min-height: 50px !important;
-    font-size: 1.1rem !important;
-    font-weight: 600 !important;
+    min-height: 36px !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    padding: 8px 16px !important;
 }
 
 /* Status box */
@@ -686,7 +759,7 @@ TRANSLATIONS = {
 }
 
 # Default language
-current_language = "en"
+current_language = "ru"
 
 def get_text(key: str) -> str:
     """Get translated text for the current language"""
@@ -1445,23 +1518,7 @@ def create_interface():
         # Общие настройки - модель, квантизация и язык
         with gr.Row():
             model_dropdown = gr.Dropdown(
-                choices=[
-                    # Abliterated models (без цензуры) - рекомендуемые
-                    ("2B Instruct Abliterated (~1.2GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated"),
-                    ("2B Thinking Abliterated (~1.2GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-2B-Thinking-abliterated"),
-                    ("4B Instruct Abliterated (~2.5GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated"),
-                    ("4B Thinking Abliterated (~2.5GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-4B-Thinking-abliterated"),
-                    ("8B Instruct Abliterated (~5GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated"),
-                    ("8B Thinking Abliterated (~5GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-8B-Thinking-abliterated"),
-                    ("30B-A3B MoE Instruct Abliterated (~18GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-30B-A3B-Instruct-abliterated"),
-                    ("30B-A3B MoE Thinking Abliterated (~18GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-30B-A3B-Thinking-abliterated"),
-                    ("32B Instruct Abliterated (~18GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-32B-Instruct-abliterated"),
-                    ("32B Thinking Abliterated (~18GB 4-bit)", "huihui-ai/Huihui-Qwen3-VL-32B-Thinking-abliterated"),
-                    # Original Qwen models
-                    ("Qwen 2B Instruct (~1.2GB 4-bit)", "Qwen/Qwen3-VL-2B-Instruct"),
-                    ("Qwen 4B Instruct (~2.5GB 4-bit)", "Qwen/Qwen3-VL-4B-Instruct"),
-                    ("Qwen 8B Instruct (~5GB 4-bit)", "Qwen/Qwen3-VL-8B-Instruct"),
-                ],
+                choices=get_model_choices(),
                 value="huihui-ai/Huihui-Qwen3-VL-2B-Instruct-abliterated",
                 label=get_text("model_selection"),
                 info=get_text("model_info"),
@@ -1469,9 +1526,9 @@ def create_interface():
             )
             quantization_dropdown = gr.Dropdown(
                 choices=[
-                    ("4-bit (Recommended)", "4-bit"),
-                    ("8-bit (Better quality)", "8-bit"),
-                    ("None (Full precision)", "none"),
+                    ("4-bit (Рекомендуется)", "4-bit"),
+                    ("8-bit (Лучше качество)", "8-bit"),
+                    ("Без (Полная точность)", "none"),
                 ],
                 value="4-bit",
                 label=get_text("quantization"),
@@ -1542,12 +1599,12 @@ def create_interface():
             with single_tab:
                 with gr.Row():
                     with gr.Column(scale=1, elem_classes="card-style"):
-                        gr.Markdown("### 📷 Input")
+                        gr.Markdown("### 📷 Входные данные")
 
                         # Tabs for Image and Video
                         media_tabs = gr.Tabs()
                         with media_tabs:
-                            image_tab = gr.TabItem("🖼️ Image")
+                            image_tab = gr.TabItem("🖼️ Изображение")
                             with image_tab:
                                 single_image = gr.Image(
                                     type="numpy",
@@ -1568,10 +1625,10 @@ def create_interface():
                                         scale=1
                                     )
 
-                            video_tab = gr.TabItem("🎥 Video")
+                            video_tab = gr.TabItem("🎥 Видео")
                             with video_tab:
                                 single_video = gr.Video(
-                                    label="Upload Video",
+                                    label="Загрузите видео",
                                     height=300
                                 )
                                 # Duplicate Generate/Stop buttons for quick access
@@ -1588,7 +1645,7 @@ def create_interface():
                                         scale=1
                                     )
 
-                        gr.Markdown("### 📝 Description Settings")
+                        gr.Markdown("### 📝 Настройки описания")
 
                         single_desc_type = gr.Dropdown(
                             choices=get_description_types(),
@@ -1611,12 +1668,11 @@ def create_interface():
                             info=get_text("num_variants_info")
                         )
 
-                        # Character name field
-                        single_character_name = gr.Textbox(
-                            label=get_text("character_name"),
-                            placeholder=get_text("character_name_placeholder"),
-                            info=get_text("character_name_info"),
-                            lines=1
+                        # Custom prompt - visible by default
+                        single_custom_prompt = gr.Textbox(
+                            label=get_text("custom_prompt_override"),
+                            placeholder=get_text("custom_prompt_placeholder"),
+                            lines=3
                         )
 
                         # Extra options (will update based on media type)
@@ -1631,15 +1687,16 @@ def create_interface():
                             # Hidden state to track if video is selected
                             single_is_video = gr.State(value=False)
 
-                        with gr.Accordion(get_text("custom_prompt_override"), open=False):
-                            single_custom_prompt = gr.Textbox(
-                                placeholder=get_text("custom_prompt_placeholder"),
-                                lines=3,
-                                label=""
+                            # Character name field - hidden in accordion
+                            single_character_name = gr.Textbox(
+                                label=get_text("character_name"),
+                                placeholder=get_text("character_name_placeholder"),
+                                info=get_text("character_name_info"),
+                                lines=1
                             )
 
                         # Prompt presets section - collapsed accordion at the bottom
-                        with gr.Accordion("📋 Prompt Presets", open=False):
+                        with gr.Accordion("📋 Пресеты промптов", open=False):
                             with gr.Row():
                                 single_preset = gr.Dropdown(
                                     choices=list(load_prompt_presets().keys()),
@@ -1654,15 +1711,15 @@ def create_interface():
                                     scale=1
                                 )
                             gr.Markdown("---")
-                            gr.Markdown("**Save Current Prompt as Preset:**")
+                            gr.Markdown("**Сохранить текущий промпт как пресет:**")
                             with gr.Row():
                                 single_save_preset_name = gr.Textbox(
-                                    label="Preset Name",
-                                    placeholder="my_preset",
+                                    label="Имя пресета",
+                                    placeholder="мой_пресет",
                                     scale=2
                                 )
                                 single_save_preset_btn = gr.Button(
-                                    "💾 Save",
+                                    "💾 Сохранить",
                                     size="sm",
                                     scale=1
                                 )
@@ -1682,14 +1739,14 @@ def create_interface():
                             )
 
                     with gr.Column(scale=1, elem_classes="card-style"):
-                        gr.Markdown("### 📊 Results")
+                        gr.Markdown("### 📊 Результаты")
                         single_status = gr.Textbox(
                             label=get_text("status"),
                             interactive=False,
                             elem_classes="status-box"
                         )
                         single_prompt_used = gr.Textbox(
-                            label="Prompt Used",
+                            label="Использованный промпт",
                             interactive=False,
                             lines=2
                         )
@@ -1721,18 +1778,18 @@ def create_interface():
                 batch_media_tabs = gr.Tabs()
                 with batch_media_tabs:
                     # BATCH IMAGES TAB
-                    batch_images_tab = gr.TabItem("📚 Batch Images")
+                    batch_images_tab = gr.TabItem("📚 Пакет изображений")
                     with batch_images_tab:
                         with gr.Row():
                             with gr.Column(scale=1, elem_classes="card-style"):
-                                gr.Markdown("### 📁 Input Files")
+                                gr.Markdown("### 📁 Входные файлы")
                                 batch_images = gr.File(
                                     file_count="multiple",
                                     label=get_text("upload_images"),
                                     file_types=["image"]
                                 )
 
-                                gr.Markdown("### 📝 Description Settings")
+                                gr.Markdown("### 📝 Настройки описания")
 
                                 # Prompt preset dropdown
                                 with gr.Row():
@@ -1794,7 +1851,7 @@ def create_interface():
                                         label=""
                                     )
 
-                                gr.Markdown("### 💾 Export Settings")
+                                gr.Markdown("### 💾 Настройки экспорта")
                                 batch_output_folder = gr.Textbox(
                                     label=get_text("output_folder"),
                                     placeholder=get_text("output_folder_placeholder"),
@@ -1820,7 +1877,7 @@ def create_interface():
                                     )
 
                             with gr.Column(scale=1, elem_classes="card-style"):
-                                gr.Markdown("### 📊 Results")
+                                gr.Markdown("### 📊 Результаты")
                                 batch_status = gr.Textbox(
                                     label=get_text("status"),
                                     interactive=False,
@@ -1839,18 +1896,18 @@ def create_interface():
                                 )
 
                     # BATCH VIDEOS TAB
-                    batch_videos_tab = gr.TabItem("🎬 Batch Videos")
+                    batch_videos_tab = gr.TabItem("🎬 Пакет видео")
                     with batch_videos_tab:
                         with gr.Row():
                             with gr.Column(scale=1, elem_classes="card-style"):
-                                gr.Markdown("### 📁 Input Video Files")
+                                gr.Markdown("### 📁 Входные видео файлы")
                                 batch_videos = gr.File(
                                     file_count="multiple",
-                                    label="Upload Videos",
+                                    label="Загрузите видео",
                                     file_types=["video"]
                                 )
 
-                                gr.Markdown("### 📝 Description Settings")
+                                gr.Markdown("### 📝 Настройки описания")
 
                                 # Prompt preset dropdown
                                 with gr.Row():
@@ -1912,7 +1969,7 @@ def create_interface():
                                         label=""
                                     )
 
-                                gr.Markdown("### 💾 Export Settings")
+                                gr.Markdown("### 💾 Настройки экспорта")
                                 batch_video_output_folder = gr.Textbox(
                                     label=get_text("output_folder"),
                                     placeholder=get_text("output_folder_placeholder"),
@@ -1926,7 +1983,7 @@ def create_interface():
 
                                 with gr.Row():
                                     batch_video_submit_btn = gr.Button(
-                                        "🚀 Process Batch Videos",
+                                        "🚀 Обработать видео",
                                         variant="primary",
                                         elem_classes="generate-btn",
                                         scale=3
@@ -1938,7 +1995,7 @@ def create_interface():
                                     )
 
                             with gr.Column(scale=1, elem_classes="card-style"):
-                                gr.Markdown("### 📊 Results")
+                                gr.Markdown("### 📊 Результаты")
                                 batch_video_status = gr.Textbox(
                                     label=get_text("status"),
                                     interactive=False,
@@ -2303,7 +2360,7 @@ def create_interface():
                 yield gr.update(value="⏳ Processing...", interactive=False), status, output_text, download_path
 
             # Re-enable button at end
-            yield gr.update(value="🚀 Process Batch Videos", interactive=True), status, output_text, download_path
+            yield gr.update(value="🚀 Обработать видео", interactive=True), status, output_text, download_path
 
         batch_video_submit_btn.click(
             fn=process_batch_video_wrapper,
