@@ -164,8 +164,8 @@
 ### 目标检测
 ![Detection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/07-object-detection.png?raw=true)
 
-### 安装时选择模型
-![Model Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202025-11-26%20093555.png?raw=true)
+### 安装时选择 CUDA 版本
+![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202025-11-26%20093555.png?raw=true)
 
 ---
 
@@ -202,9 +202,9 @@
 
 1. 下载并解压压缩包
 2. 运行 `install.bat` 安装依赖
-3. **安装时选择模型：**
-   - 将显示带编号的可用模型列表
-   - 输入模型编号（例如 `1`）并按 **Enter**
+3. **安装时选择 CUDA 版本：**
+   - 将显示 NVIDIA 显卡代数及对应 CUDA 版本列表
+   - 输入您的显卡编号（例如 `3` 表示 RTX 30xx）并按 **Enter**
    - 再次按 **Enter** 确认选择
 4. 运行 `run.bat` 启动应用程序
 
