@@ -3136,6 +3136,30 @@ def create_interface():
                 final_logs  # single_console_output
             )
 
+        # Image-only wrapper - ignores video input
+        def process_image_only_wrapper(image, desc_type, desc_length, custom_prompt,
+                                       extra_options, character_name, num_variants,
+                                       model_name, quantization, max_tokens, temperature, top_p, top_k, seed):
+            # Force video to None and use default video timestamps
+            return process_single_wrapper(
+                image, None, 0, 7200,  # video=None, default timestamps
+                desc_type, desc_length, custom_prompt,
+                extra_options, character_name, num_variants,
+                model_name, quantization, max_tokens, temperature, top_p, top_k, seed
+            )
+
+        # Video-only wrapper - ignores image input
+        def process_video_only_wrapper(video, video_start_time, video_end_time, desc_type, desc_length, custom_prompt,
+                                       extra_options, character_name, num_variants,
+                                       model_name, quantization, max_tokens, temperature, top_p, top_k, seed):
+            # Force image to None
+            return process_single_wrapper(
+                None, video, video_start_time, video_end_time,  # image=None
+                desc_type, desc_length, custom_prompt,
+                extra_options, character_name, num_variants,
+                model_name, quantization, max_tokens, temperature, top_p, top_k, seed
+            )
+
         single_submit_btn.click(
             fn=process_single_wrapper,
             inputs=[
@@ -3160,14 +3184,12 @@ def create_interface():
             outputs=[single_submit_btn, single_generate_btn_image, single_generate_btn_video, single_generate_btn_multi, single_stop_btn, single_stop_btn_image, single_stop_btn_video, single_stop_btn_multi, single_status, thinking_accordion, thinking_output, single_prompt_used, image_preview_accordion, image_preview] + [output for _, output in single_outputs] + [single_download, single_console_output]
         )
 
-        # Duplicate Generate buttons in Image/Video tabs - same functionality
+        # Duplicate Generate buttons in Image/Video tabs - use specific wrappers
         single_generate_btn_image.click(
-            fn=process_single_wrapper,
+            fn=process_image_only_wrapper,
             inputs=[
                 single_image,
-                single_video,
-                video_start_time,
-                video_end_time,
+                # video inputs removed - image tab only uses image
                 single_desc_type,
                 single_desc_length,
                 single_custom_prompt,
@@ -3186,12 +3208,12 @@ def create_interface():
         )
 
         single_generate_btn_video.click(
-            fn=process_single_wrapper,
+            fn=process_video_only_wrapper,
             inputs=[
-                single_image,
                 single_video,
                 video_start_time,
                 video_end_time,
+                # image input removed - video tab only uses video
                 single_desc_type,
                 single_desc_length,
                 single_custom_prompt,
