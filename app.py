@@ -2485,10 +2485,10 @@ def create_interface():
                     else:
                         variant_outputs.append(gr.update(value=""))
 
-                # Add model info to status
+                # Add model info above status
                 cached_size = get_model_cache_size(model_name)
                 size_str = f" [{cached_size}]" if cached_size else ""
-                status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
+                status_with_model = f"✅ **{model_name}**{size_str} | {quantization}\n\n{status}"
 
                 # Keep buttons disabled during generation
                 yield (
@@ -2513,10 +2513,10 @@ def create_interface():
                 else:
                     final_outputs.append(gr.update(value=""))
 
-            # Add model info to final status
+            # Add model info above final status
             cached_size = get_model_cache_size(model_name)
             size_str = f" [{cached_size}]" if cached_size else ""
-            final_status_with_model = f"{status}\n\n✅ **{model_name}**{size_str} | {quantization}"
+            final_status_with_model = f"✅ **{model_name}**{size_str} | {quantization}\n\n{status}"
 
             # Re-enable all generate buttons, disable all stop buttons
             yield (
