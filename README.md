@@ -165,7 +165,7 @@
 ![Detection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/07-object-detection.png?raw=true)
 
 ### Выбор версии CUDA при установке
-![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202025-11-26%20093555.png?raw=true)
+![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
 
 ---
 
@@ -206,6 +206,9 @@
    - Появится список поколений видеокарт NVIDIA с версиями CUDA
    - Введите номер вашей видеокарты (например, `3` для RTX 30xx) и нажмите **Enter**
    - Нажмите **Enter** ещё раз для подтверждения выбора
+
+   ![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
+
 4. Запустите `run.bat` для запуска приложения
 
 ### Запуск с автообновлением

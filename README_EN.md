@@ -165,7 +165,7 @@ Learn more: [Qwen2.5-VL on GitHub](https://github.com/QwenLM/Qwen2.5-VL)
 ![Detection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/07-object-detection.png?raw=true)
 
 ### CUDA Version Selection during Installation
-![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202025-11-26%20093555.png?raw=true)
+![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
 
 ---
 
@@ -206,6 +206,9 @@ Learn more: [Qwen2.5-VL on GitHub](https://github.com/QwenLM/Qwen2.5-VL)
    - A list of NVIDIA GPU generations with CUDA versions will appear
    - Enter your GPU number (e.g., `3` for RTX 30xx) and press **Enter**
    - Press **Enter** again to confirm your selection
+
+   ![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
+
 4. Run `run.bat` to launch the application
 
 ### Launch with Auto-update

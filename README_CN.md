@@ -165,7 +165,7 @@
 ![Detection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/07-object-detection.png?raw=true)
 
 ### 安装时选择 CUDA 版本
-![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/%D0%A1%D0%BD%D0%B8%D0%BC%D0%BE%D0%BA%20%D1%8D%D0%BA%D1%80%D0%B0%D0%BD%D0%B0%202025-11-26%20093555.png?raw=true)
+![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
 
 ---
 
@@ -206,6 +206,9 @@
    - 将显示 NVIDIA 显卡代数及对应 CUDA 版本列表
    - 输入您的显卡编号（例如 `3` 表示 RTX 30xx）并按 **Enter**
    - 再次按 **Enter** 确认选择
+
+   ![CUDA Selection](https://github.com/timoncool/qwen3-vl/blob/main/screenshots/08-cuda-selection.png?raw=true)
+
 4. 运行 `run.bat` 启动应用程序
 
 ### 带自动更新启动
