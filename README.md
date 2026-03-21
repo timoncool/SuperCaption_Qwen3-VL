@@ -352,7 +352,7 @@ qwen3-vl/
 
 | Проект | Описание |
 |--------|----------|
-| [Foundation Music Lab](https://github.com/timoncool/RC-stable-audio-tools-portable) | Генерация музыки + таймлайн-редактор |
+| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + таймлайн-редактор |
 | [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Распознавание речи (ASR) |
 | [LavaSR](https://github.com/timoncool/LavaSR_portable_ru) | Улучшение качества аудио |
 | [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Синтез речи (TTS) от Qwen |
@@ -360,15 +360,13 @@ qwen3-vl/
 
 ---
 
-## Credits
+## Авторы
 
-**Оригинальная модель:** [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) от Alibaba Cloud
-
-**Портативная версия:**
-- [Nerual Dreming](https://t.me/nerual_dreming) — founder of [ArtGeneration.me](https://artgeneration.me/), tech blogger, and neuro-evangelist.
+- **@Nerual Dreaming** — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
+- **Нейро-Софт** ([t.me/neuroport](https://t.me/neuroport)) — репаки и портативки нейросетей
 - [Slait](https://t.me/ruweb24)
 
-**Telegram канал:** [НЕЙРО-СОФТ](https://t.me/neuroport)
+**Оригинальная модель:** [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) от Alibaba Cloud
 
 ---
 
@@ -378,12 +376,8 @@ qwen3-vl/
 
 ---
 
-## ⭐ Поддержите проект!
+---
 
-Если SuperCaption помог вам в работе — поставьте ⭐ на GitHub!
-
-Это бесплатно и занимает секунду, но очень мотивирует на развитие проекта.
-
-[![GitHub Repo stars](https://img.shields.io/github/stars/timoncool/SuperCaption_Qwen3-VL?style=for-the-badge&logo=github)](https://github.com/timoncool/SuperCaption_Qwen3-VL/stargazers)
+> **Если проект полезен — поставьте звёздочку!**
 
 [![Star History Chart](https://api.star-history.com/svg?repos=timoncool/SuperCaption_Qwen3-VL&type=Date)](https://star-history.com/#timoncool/SuperCaption_Qwen3-VL&Date)
