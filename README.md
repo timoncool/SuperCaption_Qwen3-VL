@@ -348,6 +348,18 @@ qwen3-vl/
 
 ---
 
+## Другие портативные нейросети
+
+| Проект | Описание |
+|--------|----------|
+| [Foundation Music Lab](https://github.com/timoncool/RC-stable-audio-tools-portable) | Генерация музыки + таймлайн-редактор |
+| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Распознавание речи (ASR) |
+| [LavaSR](https://github.com/timoncool/LavaSR_portable_ru) | Улучшение качества аудио |
+| [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Синтез речи (TTS) от Qwen |
+| [VideoSOS](https://github.com/timoncool/videosos) | AI-видеопродакшн в браузере |
+
+---
+
 ## Credits
 
 **Оригинальная модель:** [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) от Alibaba Cloud
