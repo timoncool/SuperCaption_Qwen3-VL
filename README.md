@@ -348,6 +348,14 @@ qwen3-vl/
 
 ---
 
+**Оригинальная модель:** [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) от Alibaba Cloud
+
+## Лицензия
+
+Проект использует модели [Qwen](https://github.com/QwenLM/Qwen3-VL) под лицензией Apache 2.0.
+
+---
+
 ## Другие портативные нейросети
 
 | Проект | Описание |
@@ -358,23 +366,11 @@ qwen3-vl/
 | [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Синтез речи (TTS) от Qwen |
 | [VideoSOS](https://github.com/timoncool/videosos) | AI-видеопродакшн в браузере |
 
----
-
 ## Авторы
 
-- **@Nerual Dreaming** — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
+- **@Nerual Dreming** ([t.me/nerual_dreming](https://t.me/nerual_dreming)) — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
 - **Нейро-Софт** ([t.me/neuroport](https://t.me/neuroport)) — репаки и портативки нейросетей
 - [Slait](https://t.me/ruweb24)
-
-**Оригинальная модель:** [Qwen3-VL](https://github.com/QwenLM/Qwen3-VL) от Alibaba Cloud
-
----
-
-## Лицензия
-
-Проект использует модели [Qwen](https://github.com/QwenLM/Qwen3-VL) под лицензией Apache 2.0.
-
----
 
 ---
 
