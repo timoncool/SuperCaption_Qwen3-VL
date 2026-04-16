@@ -1,13 +1,17 @@
+<div align="center">
+
 # SuperCaption Qwen3-VL
 
-**Генератор описаний и тегов для фото и видео на базе Qwen3-VL**
+**Портативный генератор описаний и тегов для фото/видео — Qwen3 Vision, 50+ шаблонов, установка в один клик, 100% офлайн.**
 
-Портативное приложение с веб-интерфейсом для работы с мультимодальными моделями Qwen3-VL. Поддерживает Abliterated модели для работы с любым контентом без цензуры.
+[![Stars](https://img.shields.io/github/stars/timoncool/SuperCaption_Qwen3-VL?style=flat-square)](https://github.com/timoncool/SuperCaption_Qwen3-VL/stargazers)
+[![License](https://img.shields.io/github/license/timoncool/SuperCaption_Qwen3-VL?style=flat-square)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/timoncool/SuperCaption_Qwen3-VL?style=flat-square)](https://github.com/timoncool/SuperCaption_Qwen3-VL/commits)
+[![Downloads](https://img.shields.io/github/downloads/timoncool/SuperCaption_Qwen3-VL/total?style=flat-square)](https://github.com/timoncool/SuperCaption_Qwen3-VL/releases)
 
-[![Telegram](https://img.shields.io/badge/Telegram-НЕЙРО--СОФТ-blue?logo=telegram)](https://t.me/neuroport)
-[![GitHub Stars](https://img.shields.io/github/stars/timoncool/SuperCaption_Qwen3-VL?style=social)](https://github.com/timoncool/SuperCaption_Qwen3-VL)
+**[English](README_EN.md)** · **[中文](README_CN.md)**
 
-**[English](README_EN.md) | [中文](README_CN.md)**
+</div>
 
 ---
 
@@ -356,14 +360,15 @@ qwen3-vl/
 
 ---
 
-## Другие портативные нейросети
+## Другие проекты [@timoncool](https://github.com/timoncool)
 
 | Проект | Описание |
 |--------|----------|
-| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + таймлайн-редактор |
-| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Распознавание речи (ASR) |
-| [LavaSR](https://github.com/timoncool/LavaSR_portable_ru) | Улучшение качества аудио |
-| [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Синтез речи (TTS) от Qwen |
+| [ACE-Step Studio](https://github.com/timoncool/ACE-Step-Studio) | AI-студия музыки — песни, вокал, каверы, клипы |
+| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + редактор таймлайна |
+| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Портативное распознавание речи |
+| [LavaSR](https://github.com/timoncool/LavaSR_portable_ru) | Портативное улучшение аудио |
+| [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Портативный TTS с клонированием голоса |
 | [VideoSOS](https://github.com/timoncool/videosos) | AI-видеопродакшн в браузере |
 
 ## Авторы
@@ -371,10 +376,6 @@ qwen3-vl/
 - **Nerual Dreming** ([t.me/nerual_dreming](https://t.me/nerual_dreming)) — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
 - **Нейро-Софт** ([t.me/neuroport](https://t.me/neuroport)) — репаки и портативки нейросетей
 - [Slait](https://t.me/ruweb24)
-
----
-
-> **Если проект полезен — поставьте звёздочку!**
 
 ## Поддержать автора
 
@@ -391,8 +392,8 @@ qwen3-vl/
 
 <a href="https://www.star-history.com/?repos=timoncool%2FSuperCaption_Qwen3-VL&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=timoncool/SuperCaption_Qwen3-VL&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=timoncool/SuperCaption_Qwen3-VL&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=timoncool/SuperCaption_Qwen3-VL&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=timoncool/SuperCaption_Qwen3-VL&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=timoncool/SuperCaption_Qwen3-VL&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=timoncool/SuperCaption_Qwen3-VL&type=date&legend=top-left" />
  </picture>
 </a>
