@@ -365,10 +365,8 @@ qwen3-vl/
 | Проект | Описание |
 |--------|----------|
 | [ACE-Step Studio](https://github.com/timoncool/ACE-Step-Studio) | AI-студия музыки — песни, вокал, каверы, клипы |
-| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + редактор таймлайна |
-| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Портативное распознавание речи |
-| [LavaSR](https://github.com/timoncool/LavaSR_portable_ru) | Портативное улучшение аудио |
-| [Qwen3-TTS](https://github.com/timoncool/Qwen3-TTS_portable_rus) | Портативный TTS с клонированием голоса |
+| [Speech Studio](https://github.com/timoncool/speech-studio) | Офлайн-студия: озвучка, клонирование голоса, распознавание речи |
+| [YuE2 Studio](https://github.com/timoncool/YuE2-Studio) | Полные песни с вокалом и редактируемой партитурой |
 | [VideoSOS](https://github.com/timoncool/videosos) | AI-видеопродакшн в браузере |
 
 ## Авторы
